@@ -1,43 +1,96 @@
 package com.motadata.repo;
 
 import com.motadata.data.DiscoverCredentials;
+import com.motadata.interpreter.Discovery;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Promise;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import javax.swing.plaf.nimbus.State;
+import java.sql.*;
 
 public class DiscoveryRepo extends AbstractVerticle {
-
-    //Class.forName("com.mysql.cj.jdbc.Driver");
+    public static final Logger LOG = LoggerFactory.getLogger(Discovery.class);
     Connection con= DriverManager.getConnection(
             "jdbc:mysql://localhost:3306/DiscoveryTemp","root","Mind@123");
-    String insertUserSql = "INSERT INTO DiscoveryTemp.Discovery(device,port,user,password,version,community,host)"
-            + "VALUES(?,?,?,?,?,?,?)";
+
+    JsonObject jsonObject = new JsonObject();
+    @Override
+    public void start(Promise<Void> startPromise)  {
+
+        LOG.debug("DiscoveryRepo deployed");
+
+        EventBus eventBus = vertx.eventBus();
+
+        eventBus.consumer("my.request.db", handler ->{
+
+           jsonObject = (JsonObject) handler.body();
+
+            System.out.println("json " + jsonObject);
+
+            try {
+
+                if (!CheckIP(jsonObject)){
+
+                    Create(jsonObject);
+
+                    handler.reply("Inserted into Database");
+                }
+
+                else {
+
+                    handler.reply("Duplicate IP address");
+
+                }
+
+            }
+            catch (SQLException e) {
+
+                throw new RuntimeException(e);
+
+            }
+
+        });
+
+        startPromise.complete();
+    }
 
     PreparedStatement stmt = null;
     public DiscoveryRepo() throws SQLException, ClassNotFoundException {
 
     }
+    public Boolean CheckIP(JsonObject jsonObject) throws SQLException {
 
+        Statement statement = con.createStatement();
 
-    public void Create(DiscoverCredentials entry) throws SQLException {
+        String checkIpvalue = "select host from DiscoveryTemp.Discovery where host='" + jsonObject.getString("host")+"'";
+
+        ResultSet resultSet = statement.executeQuery(checkIpvalue);
+
+        return resultSet.next();
+
+    }
+    public void Create(JsonObject jsonObject) throws SQLException {
+        String insertUserSql = "INSERT INTO DiscoveryTemp.Discovery(device,port,user,password,version,community,host)"
+                + "VALUES(?,?,?,?,?,?,?)";
         stmt = con.prepareStatement(insertUserSql);
 
-        stmt.setString(1,entry.getMetricType());
+        stmt.setString(1,jsonObject.getString("device"));
 
-        stmt.setInt(2,entry.getPort());
+        stmt.setInt(2,jsonObject.getInteger("port"));
 
-        stmt.setString(3,entry.getUser());
+        stmt.setString(3,jsonObject.getString("user"));
 
-        stmt.setString(4,entry.getPassword());
+        stmt.setString(4,jsonObject.getString("password"));
 
-        stmt.setString(5,entry.getVersion());
+        stmt.setString(5,jsonObject.getString("version"));
 
-        stmt.setString(6,entry.getCommunity());
+        stmt.setString(6,jsonObject.getString("community"));
 
-        stmt.setString(7,entry.getHost());
+        stmt.setString(7,jsonObject.getString("host"));
 
         stmt.execute();
     }

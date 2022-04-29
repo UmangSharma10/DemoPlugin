@@ -6,14 +6,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class InitialDiscovery {
     public static final Logger LOG = LoggerFactory.getLogger(Discovery.class);
-    public HashMap<String, String> Fping(JsonObject jsonObject) throws Exception {
+    public Boolean Fping(JsonObject jsonObject) throws Exception {
         HashMap<String, String> myMap = new HashMap<>();
         ArrayList<String> commandList = new ArrayList<>();
 
@@ -60,7 +62,7 @@ public class InitialDiscovery {
 
             String[] s3 = s2[0].split("=");
 
-            if (s2.length == 1) {
+            if (s2.length == 2) {
 
                 String[] loss = s3[1].split("/");
 
@@ -72,6 +74,31 @@ public class InitialDiscovery {
             }
 
         }
-        return myMap;
+        if(myMap.get("packetrcv").equals("3")){
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    public Boolean Plugin(JsonObject jsonObject)  {
+        try {
+            List<String> commands = new ArrayList<>();
+            commands.add("/home/umang/GolandProjects/NmsLite/plugin.exe");
+            commands.add(jsonObject.encode());
+            ProcessBuilder processBuilder = new ProcessBuilder(commands);
+            Process process = processBuilder.start();
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(
+                    process.getInputStream()));
+            String s;
+            while ((s = stdInput.readLine()) != null) {
+                System.out.println(s);
+
+            }
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+        return true;
+
     }
 }
