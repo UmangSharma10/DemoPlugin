@@ -7,7 +7,7 @@ import java.util.InputMismatchException;
 public class DiscoverCredentials {
     String metricType;
     String host;
-    int port;
+    String port;
     String user;
     String password;
     String version;
@@ -50,11 +50,11 @@ public class DiscoverCredentials {
 
     }
 
-    public int getPort() {
+    public String getPort() {
         return port;
     }
 
-    public void setPort(int port) {
+    public void setPort(String port) {
         this.port = port;
     }
 

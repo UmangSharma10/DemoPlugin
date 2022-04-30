@@ -38,7 +38,7 @@ public class MainVerticle extends AbstractVerticle {
 
       cred.setUser(jsonObject.getString("user"));
 
-      cred.setPort(jsonObject.getInteger("port"));
+      cred.setPort(jsonObject.getString("port"));
 
       cred.setPassword(jsonObject.getString("password"));
 

@@ -8,10 +8,8 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class InitialDiscovery {
     public static final Logger LOG = LoggerFactory.getLogger(Discovery.class);
@@ -82,23 +80,40 @@ public class InitialDiscovery {
         }
     }
     public Boolean Plugin(JsonObject jsonObject)  {
+
+        boolean result = false;
         try {
             List<String> commands = new ArrayList<>();
+
             commands.add("/home/umang/GolandProjects/NmsLite/plugin.exe");
-            commands.add(jsonObject.encode());
+
+            String encodedString = Base64.getEncoder().encodeToString(jsonObject.encode().getBytes(StandardCharsets.UTF_8));
+
+            commands.add(encodedString);
+
             ProcessBuilder processBuilder = new ProcessBuilder(commands);
+
             Process process = processBuilder.start();
+
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(
+
                     process.getInputStream()));
+
             String s;
+
             while ((s = stdInput.readLine()) != null) {
-                System.out.println(s);
+
+                result = Boolean.parseBoolean(s);
 
             }
-        }catch (IOException e) {
-            e.printStackTrace();
         }
-        return true;
+        catch (IOException e) {
+
+            e.printStackTrace();
+
+        }
+
+        return result;
 
     }
 }

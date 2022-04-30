@@ -80,7 +80,7 @@ public class DiscoveryRepo extends AbstractVerticle {
 
         stmt.setString(1,jsonObject.getString("device"));
 
-        stmt.setInt(2,jsonObject.getInteger("port"));
+        stmt.setString(2,jsonObject.getString("port"));
 
         stmt.setString(3,jsonObject.getString("user"));
 
