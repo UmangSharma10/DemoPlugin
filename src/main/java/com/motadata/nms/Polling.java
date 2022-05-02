@@ -11,7 +11,7 @@ import java.util.Base64;
 import java.util.List;
 
 public class Polling {
-    public String plugin(JsonObject jsonObject) {
+    public String metricDiscovering(JsonObject jsonObject) {
         String result ="";
         try {
             List<String> commands = new ArrayList<>();

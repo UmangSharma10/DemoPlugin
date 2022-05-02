@@ -69,7 +69,7 @@ public class Discovery extends AbstractVerticle {
 
                     jsonObject.put("discovery", "false");
 
-                    polling.plugin(trimData);
+                    polling.metricDiscovering(trimData);
 
                     jsonObject.remove("discovery");
                 }
@@ -77,7 +77,7 @@ public class Discovery extends AbstractVerticle {
 
                 if (result) {
                     jsonObject.put("discovery", "true");
-                    String outcome = polling.plugin(trimData);
+                    String outcome = polling.metricDiscovering(trimData);
                     jsonObject.remove("discovery");
 
                     if (outcome.equals("success")) {
