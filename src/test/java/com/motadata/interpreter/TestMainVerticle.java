@@ -1,5 +1,6 @@
 package com.motadata.interpreter;
 
+import com.motadata.nms.MainVerticle;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
