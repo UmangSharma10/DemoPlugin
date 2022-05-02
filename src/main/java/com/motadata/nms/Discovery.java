@@ -65,7 +65,7 @@ public class Discovery extends AbstractVerticle {
 
                 } else {
 
-                    //handler.reply("Already Discovered");
+                    handler.reply("Already Discovered");
 
                     jsonObject.put("discovery", "false");
 
