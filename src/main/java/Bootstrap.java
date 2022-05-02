@@ -1,6 +1,6 @@
-import com.motadata.interpreter.Discovery;
-import com.motadata.interpreter.MainVerticle;
-import com.motadata.repo.DiscoveryRepo;
+import com.motadata.nms.Discovery;
+import com.motadata.nms.MainVerticle;
+import com.motadata.nms.DiscoveryRepo;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
@@ -14,28 +14,24 @@ public class Bootstrap {
 
         Vertx vertx = Vertx.vertx();
 
-        vertx.deployVerticle(new MainVerticle()).onComplete(h1->{
+        vertx.deployVerticle(new MainVerticle()).onComplete(h1 -> {
 
             try {
 
-                vertx.deployVerticle(new DiscoveryRepo() ,new DeploymentOptions().setWorker(true)).onComplete(h2->{
+                vertx.deployVerticle(new DiscoveryRepo(), new DeploymentOptions().setWorker(true)).onComplete(h2 -> {
 
                     try {
 
                         vertx.deployVerticle(new Discovery(), new DeploymentOptions().setWorker(true)).onComplete(AsyncResult::succeeded);
 
-                    }
-
-                    catch (SQLException | ClassNotFoundException e) {
+                    } catch (SQLException | ClassNotFoundException e) {
 
                         throw new RuntimeException(e);
                     }
 
                 });
 
-            }
-
-            catch (SQLException | ClassNotFoundException e) {
+            } catch (SQLException | ClassNotFoundException e) {
 
                 throw new RuntimeException(e);
 

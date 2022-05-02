@@ -1,9 +1,14 @@
-package com.motadata.util;
+package com.motadata.nms;
+
+import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Validation {
+    public static final Logger LOG = LoggerFactory.getLogger(Validation.class);
     private static final String INET4ADDRESS = null;
 
     private static final String IPV4_REGEX =
@@ -14,7 +19,8 @@ public class Validation {
 
     private static final Pattern IPv4_PATTERN = Pattern.compile(IPV4_REGEX);
 
-    public static boolean isValidIp(String ip)
+    JsonObject ErrorData = new JsonObject();
+    public boolean isValidIp(String ip)
     {
         if (ip == null) {
             return false;
@@ -25,7 +31,7 @@ public class Validation {
         return matcher.matches();
     }
 
-    public static boolean isValidString(String string) {
+    public boolean isValidString(String string) {
 
         // Regex to check valid username.
         String regex = "^[A-Za-z]$";
