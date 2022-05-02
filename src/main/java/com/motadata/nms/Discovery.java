@@ -34,13 +34,6 @@ public class Discovery extends AbstractVerticle {
 
             Boolean result = false;
 
-
-            eventBus.consumer("metric.address", metricHandler -> {
-                JsonObject jsonObjectMetric = (JsonObject) handler.body();
-
-
-            });
-
             String device = jsonObject.getString("device").trim();
                     String port = jsonObject.getString("port").trim();
                             String user = jsonObject.getString("user").trim();
@@ -67,18 +60,19 @@ public class Discovery extends AbstractVerticle {
 
                     handler.reply("Already Discovered");
 
-                    jsonObject.put("discovery", "false");
+                    jsonObject.put("category", "polling");
 
                     polling.metricDiscovering(trimData);
+                    //not metric type but polling
 
-                    jsonObject.remove("discovery");
+                    jsonObject.remove("category");
                 }
 
 
                 if (result) {
-                    jsonObject.put("discovery", "true");
+                    jsonObject.put("category", "discovery");
                     String outcome = polling.metricDiscovering(trimData);
-                    jsonObject.remove("discovery");
+                    jsonObject.remove("category");
 
                     if (outcome.equals("success")) {
                         eventBus.request("my.request.db", trimData, req -> {
@@ -111,11 +105,13 @@ public class Discovery extends AbstractVerticle {
             }
         }
         else {
-            handler.reply("IP not valid");
+            handler.reply("Ip address not valid");
         }
         });
         startPromise.complete();
 
     }
+
+
 }
 
