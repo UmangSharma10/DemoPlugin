@@ -1,44 +1,45 @@
-import com.motadata.nms.Discovery;
-import com.motadata.nms.MainVerticle;
-import com.motadata.nms.DiscoveryRepo;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.DeploymentOptions;
+import com.mindarray.APIServer;
+import com.mindarray.DatabaseEngine;
+import com.mindarray.DiscoveryEngine;
+import com.mindarray.PollerEngine;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 
-import java.sql.SQLException;
-
 public class Bootstrap {
-    public static void main(String[] args) throws Exception {
+    public static final Vertx vertx = Vertx.vertx();
 
-        MainVerticle mainVerticle = new MainVerticle();
+    public static void main(String[] args) {
 
-        Vertx vertx = Vertx.vertx();
+        start(APIServer.class.getName())
+                .compose(future -> start(DatabaseEngine.class.getName()))
+                .compose(future -> start(DiscoveryEngine.class.getName()))
+                .compose(future -> start(PollerEngine.class.getName()))
+                .onComplete(handler -> {
 
-        vertx.deployVerticle(new MainVerticle()).onComplete(h1 -> {
-
-            try {
-
-                vertx.deployVerticle(new DiscoveryRepo(), new DeploymentOptions().setWorker(true)).onComplete(h2 -> {
-
-                    try {
-
-                        vertx.deployVerticle(new Discovery(), new DeploymentOptions().setWorker(true)).onComplete(AsyncResult::succeeded);
-
-                    } catch (SQLException | ClassNotFoundException e) {
-
-                        throw new RuntimeException(e);
+                    if (handler.succeeded()) {
+                        System.out.println("deployed successfully");
+                    } else {
+                        System.out.println("Not deployed");
                     }
-
                 });
-
-            } catch (SQLException | ClassNotFoundException e) {
-
-                throw new RuntimeException(e);
-
-            }
-
-        });
-
-        mainVerticle.start();
     }
+
+    public static Future<Void> start(String verticle) {
+
+        Promise<Void> promise = Promise.promise();
+        vertx.deployVerticle(verticle, handler -> {
+
+            if (handler.succeeded()) {
+                System.out.println("success");
+                promise.complete();
+            } else {
+                System.out.println("Failed");
+                promise.fail(handler.cause());
+            }
+        });
+        return promise.future();
+    }
+
+
 }

@@ -1,6 +1,6 @@
-package com.motadata.interpreter;
+package com.mindarray.interpreter;
 
-import com.motadata.nms.MainVerticle;
+import com.mindarray.nms.MainVerticle;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
