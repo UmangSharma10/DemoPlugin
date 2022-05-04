@@ -7,7 +7,7 @@
     </Appenders>
     <Loggers>
         <Logger name = "com.mindarray" level = "DEBUG" />
-        <Root level="INFO">
+        <Root level="DEBUG">
             <AppenderRef ref="Console"/>
         </Root>
     </Loggers>

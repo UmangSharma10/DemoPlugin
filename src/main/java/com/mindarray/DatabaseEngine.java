@@ -14,36 +14,36 @@ public class DatabaseEngine extends AbstractVerticle {
 
     JsonObject jsonDbdata = new JsonObject();
     JsonObject checkIPJson = new JsonObject();
+
     @Override
     public void start(Promise<Void> startPromise) {
         LOG.debug("DATABASE ENGINE DEPLOYED");
 
         EventBus eventBus = vertx.eventBus();
 
-        eventBus.consumer(NmsConstant.DATABASECHECKIP, checkip ->{
+        eventBus.consumer("checkip", checkip -> {
             JsonObject result = new JsonObject();
             checkIPJson = (JsonObject) checkip.body();
             System.out.println(checkIPJson);
 
             String ip = checkIPJson.getString("host").trim();
 
-            vertx.executeBlocking(event ->{
+            vertx.executeBlocking(event -> {
                 try {
-                    if(!checkIP(ip)){
+                    if (!checkIP(ip)) {
                         result.put("status", "Success");
-                    }
-                    else {
+                        event.complete(result);
+                    } else {
                         result.put("status", "Failed");
                         result.put("Error", "Check IP FAIlED");
+                        event.complete(result);
                     }
-                }catch (NullPointerException exception){
+                } catch (NullPointerException exception) {
                     LOG.debug("NULL POINTER EXCEPTION");
-                }
-                catch (SQLException e) {
+                } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
-            }).onComplete(res-> checkip.reply(result));
-
+            }).onComplete(res -> checkip.reply(result));
 
 
         });
@@ -55,27 +55,27 @@ public class DatabaseEngine extends AbstractVerticle {
 
             String host = jsonDbdata.getString("host");
 
-            vertx.executeBlocking(Blockinhandler ->{
+            vertx.executeBlocking(Blockinhandler -> {
                 try {
 
                     if (!checkIP(host)) {
 
                         create(jsonDbdata);
 
-                        result.put("Insertion","Succssful");
+                        result.put("Insertion", "Successful");
                     } else {
 
-                        result.put("Insertion","Unsuccessful");
-                        result.put("Error","Duplicate IP address");
+                        result.put("Insertion", "Unsuccessful");
+                        result.put("Error", "Duplicate IP address");
 
                     }
 
                 } catch (SQLException e) {
-                    result.put("Insertion","Unsuccessful");
-                    result.put("Error",e.getMessage());
+                    result.put("Insertion", "Unsuccessful");
+                    result.put("Error", e.getMessage());
                 }
                 Blockinhandler.complete();
-            }).onComplete( handler1 -> handler.reply(result));
+            }).onComplete(handler1 -> handler.reply(result));
         });
         startPromise.complete();
     }
@@ -85,7 +85,7 @@ public class DatabaseEngine extends AbstractVerticle {
                 "jdbc:mysql://localhost:3306/DiscoveryTemp", "root", "Mind@123");
         Statement statement = con.createStatement();
 
-        String checkIpvalue = "select host from DiscoveryTemp.Discovery where host='" + host+ "'";
+        String checkIpvalue = "select host from DiscoveryTemp.Discovery where host='" + host + "'";
 
         ResultSet resultSet = statement.executeQuery(checkIpvalue);
 

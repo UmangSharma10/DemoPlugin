@@ -25,7 +25,7 @@ public class DiscoveryEngine extends AbstractVerticle {
             JsonObject validation = utility.validation(userData);
             System.out.println(validation);
             if (!validation.containsKey("error")) {
-                vertx.eventBus().request(NmsConstant.DATABASECHECKIP, userData, ret -> {
+                vertx.eventBus().request("checkip", userData, ret -> {
                     if (ret.succeeded()) {
                         JsonObject check = new JsonObject(ret.result().body().toString());
                         System.out.println(check);
@@ -34,14 +34,17 @@ public class DiscoveryEngine extends AbstractVerticle {
                                 try {
                                     result = utility.pingAvailiblity(userData.getString("host").trim());
                                     if (result.getString("status").equals("up")) {
-                                        //CALL PLUGIN
-                                        //if plugin success call event.complete
-                                        //else event.fail
-
-                                        event.complete();
+                                        JsonObject trimData = utility.trimData(userData);
+                                        JsonObject resultPlugin = utility.plugin(trimData);
+                                        if (resultPlugin.getString("status").equals("success")) {
+                                            event.complete(resultPlugin);
+                                        } else {
+                                            error.put("status", "Plugin Discovery Failed");
+                                            event.fail(resultPlugin.encode());
+                                        }
                                     } else {
                                         error.put("status", "Already Discovered");
-                                        event.fail(result.encode());
+                                        event.complete(result);
                                     }
 
 

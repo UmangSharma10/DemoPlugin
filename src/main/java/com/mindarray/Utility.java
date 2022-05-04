@@ -5,8 +5,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -182,5 +185,50 @@ public class Utility {
 
     }
 
+    public JsonObject plugin(JsonObject pluginJson) {
+        JsonObject result = new JsonObject();
+        pluginJson.put("category", "discovery");
+        try {
+            List<String> commands = new ArrayList<>();
+
+            commands.add("/home/umang/GolandProjects/NmsLite/plugin.exe");
+
+            String encodedString = Base64.getEncoder().encodeToString(pluginJson.encode().getBytes(StandardCharsets.UTF_8));
+
+            commands.add(encodedString);
+
+            ProcessBuilder processBuilder = new ProcessBuilder(commands);
+
+            Process process = processBuilder.start();
+
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+            String readInput;
+
+            if ((readInput = stdInput.readLine()) != null) {
+                result.put("status", readInput);
+            }
+            if ((readInput = stdError.readLine()) != null) {
+                result.put("status", readInput);
+
+            }
+
+            stdInput.close();
+            stdError.close();
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
+        }
+        pluginJson.remove("category");
+
+
+        return result;
+
+    }
 
 }
+
+
+

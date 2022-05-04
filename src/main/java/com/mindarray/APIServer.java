@@ -11,10 +11,10 @@ import org.slf4j.LoggerFactory;
 
 public class APIServer extends AbstractVerticle {
     private static final Logger LOG = LoggerFactory.getLogger(APIServer.class);
+
     @Override
     public void start(Promise<Void> startPromise) throws Exception {
         LOG.debug("APISERVER DEPLOYED");
-
 
 
         Router router = Router.router(vertx);
@@ -27,14 +27,13 @@ public class APIServer extends AbstractVerticle {
             JsonObject jsonObject = ctx.getBodyAsJson();
             System.out.println(jsonObject);
 
-            if(jsonObject!=null) {
+            if (jsonObject != null) {
                 vertx.eventBus().request(NmsConstant.DISCOVERY_ADDRESS, jsonObject, req -> {
-                    if (req.succeeded()){
+                    if (req.succeeded()) {
                         LOG.debug("Response {} ", req.result().body());
 
-                    ctx.response().end(req.result().body().toString());
-                }
-                    else {
+                        ctx.response().end(req.result().body().toString());
+                    } else {
                         ctx.response().end("Please try again, ERROR 404 : DATA NOT FOUND");
                     }
                 });
@@ -42,12 +41,10 @@ public class APIServer extends AbstractVerticle {
         });
 
 
-
-        vertx.createHttpServer().requestHandler(router).listen(8888).onComplete(handler ->{
-            if (handler.succeeded()){
+        vertx.createHttpServer().requestHandler(router).listen(8888).onComplete(handler -> {
+            if (handler.succeeded()) {
                 LOG.debug("Server Created on port 8888");
-            }
-            else {
+            } else {
                 LOG.debug("Server Failed");
             }
         });
