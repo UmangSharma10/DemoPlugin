@@ -41,9 +41,8 @@ public class Bootstrap {
 
             if (handler.succeeded()) {
 
-                System.out.println("success");
-
                 promise.complete();
+
             }
             else {
 

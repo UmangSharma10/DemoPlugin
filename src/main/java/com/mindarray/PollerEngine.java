@@ -9,7 +9,7 @@ public class PollerEngine extends AbstractVerticle {
     private static final Logger LOG = LoggerFactory.getLogger(PollerEngine.class);
 
     @Override
-    public void start(Promise<Void> startPromise) throws Exception {
+    public void start(Promise<Void> startPromise) {
         LOG.debug("POLLER ENGINE DEPLOYED");
         startPromise.complete();
     }

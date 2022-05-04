@@ -48,7 +48,7 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                 try {
 
-                                    result = utility.pingAvailiblity(userData.getString("host").trim());
+                                    result = utility.pingAvailiblity(userData.getString(NmsConstant.IP_ADDRESS).trim());
 
                                     if (result.getString("status").equals("up")) {
 

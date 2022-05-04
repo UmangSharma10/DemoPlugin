@@ -29,7 +29,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
             System.out.println(checkIPJson);
 
-            String ip = checkIPJson.getString("host").trim();
+            String ip = checkIPJson.getString(NmsConstant.IP_ADDRESS).trim();
 
             vertx.executeBlocking(event -> {
                 try {
@@ -68,7 +68,7 @@ public class DatabaseEngine extends AbstractVerticle {
             JsonObject result = new JsonObject();
             jsonDbdata = (JsonObject) handler.body();
 
-            String host = jsonDbdata.getString("host");
+            String host = jsonDbdata.getString(NmsConstant.IP_ADDRESS);
 
             vertx.executeBlocking(Blockinhandler -> {
                 try {
@@ -78,26 +78,36 @@ public class DatabaseEngine extends AbstractVerticle {
                         create(jsonDbdata);
 
                         result.put("Insertion", "Successful");
+
                     } else {
 
                         result.put("Insertion", "Unsuccessful");
+
                         result.put("Error", "Duplicate IP address");
 
                     }
 
                 } catch (SQLException e) {
+
                     result.put("Insertion", "Unsuccessful");
+
                     result.put("Error", e.getMessage());
                 }
+
                 Blockinhandler.complete();
+
             }).onComplete(handler1 -> handler.reply(result));
+
         });
+
         startPromise.complete();
     }
 
     public Boolean checkIP(String host) throws SQLException {
+
         Connection con = DriverManager.getConnection(
                 "jdbc:mysql://localhost:3306/DiscoveryTemp", "root", "Mind@123");
+
         Statement statement = con.createStatement();
 
         String checkIpvalue = "select host from DiscoveryTemp.Discovery where host='" + host + "'";

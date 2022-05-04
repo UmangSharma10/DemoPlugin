@@ -8,10 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,32 +16,55 @@ public class Utility {
     private static final Logger LOG = LoggerFactory.getLogger(APIServer.class);
 
     public JsonObject trimData(JsonObject userData) {
-        String device = userData.getString("device");
-        String port = userData.getString("port");
-        String user = userData.getString("user");
-        String password = userData.getString("password");
-        String ip = userData.getString("host");
-
         JsonObject trimData = new JsonObject();
 
-        if (!ip.isEmpty()) {
+        if(userData.getString(NmsConstant.METRIC_TYPE).equals("linux")){
+            String device = userData.getString(NmsConstant.METRIC_TYPE);
+
+            String port = userData.getString(NmsConstant.PORT);
+
+            String ip = userData.getString(NmsConstant.IP_ADDRESS);
+
+            String user = userData.getString(NmsConstant.USER);
+
+            String password = userData.getString(NmsConstant.PASSWORD);
+
+           trimData.put("host", ip.trim());
+           trimData.put("user", user.trim());
+           trimData.put("password",password.trim());
+           trimData.put("port", port.trim());
+           trimData.put("device",device.trim());
+        }
+
+        else if(userData.getString(NmsConstant.METRIC_TYPE).equals("windows")){
+            String device = userData.getString(NmsConstant.METRIC_TYPE);
+
+            String port = userData.getString(NmsConstant.PORT);
+
+            String ip = userData.getString(NmsConstant.IP_ADDRESS);
+
+            String user = userData.getString(NmsConstant.USER);
+
+            String password = userData.getString(NmsConstant.PASSWORD);
             trimData.put("host", ip.trim());
-        }
-
-        if (!device.isEmpty()) {
-            trimData.put("device", device.trim());
-        }
-
-        if (!user.isEmpty()) {
             trimData.put("user", user.trim());
-        }
-
-
-        if (!password.isEmpty()) {
-            trimData.put("password", password.trim());
-        }
-        if (!port.isEmpty()) {
+            trimData.put("password",password.trim());
             trimData.put("port", port.trim());
+            trimData.put("device",device.trim());
+
+        }
+        else if(userData.getString(NmsConstant.METRIC_TYPE).equals("network")){
+            String device = userData.getString(NmsConstant.METRIC_TYPE);
+
+            String port = userData.getString(NmsConstant.PORT);
+
+            String ip = userData.getString(NmsConstant.IP_ADDRESS);
+
+            String community = userData.getString(NmsConstant.COMMUNITY);
+            trimData.put("host", ip.trim());
+            trimData.put("port", port.trim());
+            trimData.put("device",device.trim());
+            trimData.put("community", community.trim());
         }
 
         return trimData;
@@ -65,7 +85,7 @@ public class Utility {
             return false;
         }
 
-        Matcher matcher = IPv4_PATTERN.matcher(ip);
+        Matcher matcher = IPv4_PATTERN.matcher(ip.trim());
 
         return matcher.matches();
     }
@@ -158,20 +178,35 @@ public class Utility {
 
         JsonObject result = new JsonObject();
         List<String> listErrors = new ArrayList<>();
-
-        if (validation.getString("user").isBlank()) {
-            listErrors.add("User is Invalid");
-        } else if (validation.getString("password").isBlank()) {
-            listErrors.add("password is invalid");
-        } else if (validation.getString("port").isBlank()) {
+        if (validation.getString(NmsConstant.METRIC_TYPE).isBlank() || validation.getString(NmsConstant.METRIC_TYPE)==null) {
+            listErrors.add("Metric is invalid");
+        }
+        else if(!validation.getString(NmsConstant.METRIC_TYPE).isBlank() && validation.getString(NmsConstant.METRIC_TYPE).equals("linux")) {
+            if (validation.getString(NmsConstant.USER) == null || validation.getString(NmsConstant.USER).isBlank()) {
+                listErrors.add("User is Invalid");
+            } else if (validation.getString(NmsConstant.PASSWORD).isBlank() || validation.getString(NmsConstant.PASSWORD) == null) {
+                listErrors.add("password is invalid");
+            }
+        }
+        else if(!validation.getString(NmsConstant.METRIC_TYPE).isBlank() && validation.getString(NmsConstant.METRIC_TYPE).equals("windows")) {
+            if (validation.getString(NmsConstant.USER) == null || validation.getString(NmsConstant.USER).isBlank()) {
+                listErrors.add("User is Invalid");
+            } else if (validation.getString(NmsConstant.PASSWORD).isBlank() || validation.getString(NmsConstant.PASSWORD) == null) {
+                listErrors.add("password is invalid");
+            }
+        }
+       else if(!validation.getString(NmsConstant.METRIC_TYPE).isBlank() && validation.getString(NmsConstant.METRIC_TYPE).equals("network")) {
+            if (validation.getString(NmsConstant.COMMUNITY) == null || validation.getString(NmsConstant.COMMUNITY).isBlank()) {
+                listErrors.add("community is Invalid");
+            }
+        }
+       else if (validation.getString(NmsConstant.PORT).isBlank() || validation.getString(NmsConstant.PORT)== null) {
             listErrors.add("port is invalid");
-        } else if (!isValidPort(validation.getString("port"))) {
+        } else if (!isValidPort(validation.getString(NmsConstant.PORT))) {
             listErrors.add("port is invalid");
-        } else if (validation.getString("device").isBlank()) {
-            listErrors.add("device is invalid");
-        } else if (validation.getString("host").isBlank()) {
+        } else if (validation.getString(NmsConstant.IP_ADDRESS).isBlank() || validation.getString(NmsConstant.IP_ADDRESS)==null) {
             listErrors.add("ip is invalid");
-        } else if (!isValidIp(validation.getString("host"))) {
+        } else if (!isValidIp(validation.getString(NmsConstant.IP_ADDRESS))) {
             listErrors.add("ip is not valid");
         }
         if (listErrors.isEmpty()) {
