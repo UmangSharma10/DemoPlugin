@@ -21,28 +21,43 @@ public class DatabaseEngine extends AbstractVerticle {
 
         EventBus eventBus = vertx.eventBus();
 
-        eventBus.consumer("checkip", checkip -> {
+        eventBus.consumer(NmsConstant.DATABASECHECKIP, checkip -> {
+
             JsonObject result = new JsonObject();
+
             checkIPJson = (JsonObject) checkip.body();
+
             System.out.println(checkIPJson);
 
             String ip = checkIPJson.getString("host").trim();
 
             vertx.executeBlocking(event -> {
                 try {
+
                     if (!checkIP(ip)) {
+
                         result.put("status", "Success");
+
                         event.complete(result);
                     } else {
+
                         result.put("status", "Failed");
+
                         result.put("Error", "Check IP FAIlED");
+
                         event.complete(result);
                     }
+
                 } catch (NullPointerException exception) {
+
                     LOG.debug("NULL POINTER EXCEPTION");
+
                 } catch (SQLException e) {
+
                     throw new RuntimeException(e);
+
                 }
+
             }).onComplete(res -> checkip.reply(result));
 
 

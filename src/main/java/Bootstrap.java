@@ -13,28 +13,42 @@ public class Bootstrap {
 
         start(APIServer.class.getName())
                 .compose(future -> start(DatabaseEngine.class.getName()))
+
                 .compose(future -> start(DiscoveryEngine.class.getName()))
+
                 .compose(future -> start(PollerEngine.class.getName()))
+
                 .onComplete(handler -> {
 
                     if (handler.succeeded()) {
+
                         System.out.println("deployed successfully");
-                    } else {
+
+                    }
+                    else
+                    {
                         System.out.println("Not deployed");
                     }
+
                 });
     }
 
     public static Future<Void> start(String verticle) {
 
         Promise<Void> promise = Promise.promise();
+
         vertx.deployVerticle(verticle, handler -> {
 
             if (handler.succeeded()) {
+
                 System.out.println("success");
+
                 promise.complete();
-            } else {
+            }
+            else {
+
                 System.out.println("Failed");
+
                 promise.fail(handler.cause());
             }
         });
