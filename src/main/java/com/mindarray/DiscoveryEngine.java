@@ -42,7 +42,7 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                         System.out.println(check);
 
-                        if (!check.containsKey("error")) {
+                        if (!check.containsKey("Error")) {
 
                             vertx.executeBlocking(event -> {
 
@@ -52,9 +52,10 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                     if (result.getString("status").equals("up")) {
 
-                                        JsonObject trimData = utility.trimData(userData);
+                                       JsonObject trimData = utility.trimData(userData);
+                                       userData.mergeIn(trimData);
 
-                                        JsonObject resultPlugin = utility.plugin(trimData);
+                                        JsonObject resultPlugin = utility.plugin(userData);
 
                                         if (resultPlugin.getString("status").equals("success")) {
 
@@ -68,13 +69,13 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                         }
 
-                                    } else {
-
-                                        error.put("status", "Already Discovered");
-
-                                        event.complete(result);
-
                                     }
+                                    else if (result.getString("status").equals("down")){
+                                        error.put("status", "down");
+                                        event.fail(result.encode());
+                                    }
+
+
 
 
                                 } catch (NullPointerException e) {
@@ -91,9 +92,9 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                 if (evehandler.succeeded()) {
 
-                                    JsonObject trimData = utility.trimData(userData);
+                                    //JsonObject trimData = utility.trimData(userData);
 
-                                    vertx.eventBus().request("my.request.db", trimData, request -> {
+                                    vertx.eventBus().request("my.request.db", userData, request -> {
 
                                         LOG.debug("Response {} ", request.result().body().toString());
 
@@ -108,6 +109,13 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                 }
                             });
+                        }
+                        else {
+
+                            error.put("status", "Already Discovered");
+
+                            handler.reply(error);
+
                         }
                     }
                 });

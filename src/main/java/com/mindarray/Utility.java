@@ -140,21 +140,24 @@ public class Utility {
                 String[] loss = s3[1].split("/");
 
                 myMap.put("packetxmt", loss[0]);
-
-
                 myMap.put("packetrcv", loss[1]);
+
+            }
+            else if (s2.length == 1){
+                myMap.put("packetrcv", "0");
 
             }
 
         }
-        input.close();
-        Error.close();
-
         if (myMap.get("packetrcv").equals("3")) {
             ping.put("status", "up");
         } else {
             ping.put("status", "down");
         }
+        input.close();
+        Error.close();
+
+
         return ping;
     }
 
@@ -178,33 +181,33 @@ public class Utility {
 
         JsonObject result = new JsonObject();
         List<String> listErrors = new ArrayList<>();
-        if (validation.getString(NmsConstant.METRIC_TYPE).isBlank() || validation.getString(NmsConstant.METRIC_TYPE)==null) {
+        if (validation.getString(NmsConstant.METRIC_TYPE)==null || validation.getString(NmsConstant.METRIC_TYPE).isBlank()) {
             listErrors.add("Metric is invalid");
         }
-        else if(!validation.getString(NmsConstant.METRIC_TYPE).isBlank() && validation.getString(NmsConstant.METRIC_TYPE).equals("linux")) {
+        else if( validation.getString(NmsConstant.METRIC_TYPE).equals("linux") && !validation.getString(NmsConstant.METRIC_TYPE).isBlank()) {
             if (validation.getString(NmsConstant.USER) == null || validation.getString(NmsConstant.USER).isBlank()) {
                 listErrors.add("User is Invalid");
-            } else if (validation.getString(NmsConstant.PASSWORD).isBlank() || validation.getString(NmsConstant.PASSWORD) == null) {
+            } else if (validation.getString(NmsConstant.PASSWORD) == null || validation.getString(NmsConstant.PASSWORD).isBlank()) {
                 listErrors.add("password is invalid");
             }
         }
-        else if(!validation.getString(NmsConstant.METRIC_TYPE).isBlank() && validation.getString(NmsConstant.METRIC_TYPE).equals("windows")) {
+        else if(validation.getString(NmsConstant.METRIC_TYPE).equals("windows")  && !validation.getString(NmsConstant.METRIC_TYPE).isBlank() ) {
             if (validation.getString(NmsConstant.USER) == null || validation.getString(NmsConstant.USER).isBlank()) {
                 listErrors.add("User is Invalid");
-            } else if (validation.getString(NmsConstant.PASSWORD).isBlank() || validation.getString(NmsConstant.PASSWORD) == null) {
+            } else if (validation.getString(NmsConstant.PASSWORD) == null || validation.getString(NmsConstant.PASSWORD).isBlank()) {
                 listErrors.add("password is invalid");
             }
         }
-       else if(!validation.getString(NmsConstant.METRIC_TYPE).isBlank() && validation.getString(NmsConstant.METRIC_TYPE).equals("network")) {
+       else if(validation.getString(NmsConstant.METRIC_TYPE).equals("network") && !validation.getString(NmsConstant.METRIC_TYPE).isBlank()) {
             if (validation.getString(NmsConstant.COMMUNITY) == null || validation.getString(NmsConstant.COMMUNITY).isBlank()) {
                 listErrors.add("community is Invalid");
             }
         }
-       else if (validation.getString(NmsConstant.PORT).isBlank() || validation.getString(NmsConstant.PORT)== null) {
+       else if (validation.getString(NmsConstant.PORT)== null || validation.getString(NmsConstant.PORT).isBlank()) {
             listErrors.add("port is invalid");
         } else if (!isValidPort(validation.getString(NmsConstant.PORT))) {
             listErrors.add("port is invalid");
-        } else if (validation.getString(NmsConstant.IP_ADDRESS).isBlank() || validation.getString(NmsConstant.IP_ADDRESS)==null) {
+        } else if (validation.getString(NmsConstant.IP_ADDRESS)==null || validation.getString(NmsConstant.IP_ADDRESS).isBlank()) {
             listErrors.add("ip is invalid");
         } else if (!isValidIp(validation.getString(NmsConstant.IP_ADDRESS))) {
             listErrors.add("ip is not valid");
@@ -245,7 +248,8 @@ public class Utility {
                 result.put("status", readInput);
             }
             if ((readInput = stdError.readLine()) != null) {
-                result.put("status", readInput);
+                result.put("status", "failed");
+                result.put("Error", readInput);
 
             }
 

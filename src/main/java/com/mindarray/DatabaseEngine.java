@@ -116,6 +116,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
         return resultSet.next();
 
+
     }
 
     public void create(JsonObject jsonObject) throws SQLException {
@@ -141,5 +142,6 @@ public class DatabaseEngine extends AbstractVerticle {
         discoveryStmt.setString(7, jsonObject.getString("host"));
 
         discoveryStmt.execute();
+
     }
 }

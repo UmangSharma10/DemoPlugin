@@ -24,9 +24,7 @@ public class Bootstrap {
 
                         System.out.println("deployed successfully");
 
-                    }
-                    else
-                    {
+                    } else {
                         System.out.println("Not deployed");
                     }
 
@@ -43,8 +41,7 @@ public class Bootstrap {
 
                 promise.complete();
 
-            }
-            else {
+            } else {
 
                 System.out.println("Failed");
 
