@@ -1,5 +1,7 @@
 package com.mindarray;
 
+import com.mindarray.utility.Utility;
+import com.mindarray.utility.ValidationUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
@@ -8,79 +10,62 @@ import org.slf4j.LoggerFactory;
 
 public class DiscoveryEngine extends AbstractVerticle {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DiscoveryEngine.class);
     Utility utility = new Utility();
-
-    JsonObject userData = new JsonObject();
-
-    JsonObject result = new JsonObject();
+    private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryEngine.class);
 
     @Override
     public void start(Promise<Void> startPromise) {
 
-        LOG.debug("DISCOVERY ENGINE DEPLOYED");
+        LOGGER.debug("DISCOVERY ENGINE DEPLOYED");
 
-        JsonObject error = new JsonObject();
+        vertx.eventBus().consumer(Constant.EVENTBUS_DISCOVERY, handler -> {
 
-        vertx.eventBus().consumer(NmsConstant.DISCOVERY_ADDRESS, handler -> {
+            JsonObject discoveryCredentials = new JsonObject(handler.body().toString());
 
-            userData = (JsonObject) handler.body();
+            utility.trimData(discoveryCredentials);
 
-            System.out.println(userData);
 
-            JsonObject validation = utility.validation(userData);
+            JsonObject validationResult = ValidationUtil.validation(discoveryCredentials);
 
-            System.out.println(validation);
+            if (!validationResult.containsKey(Constant.ERROR)) {
 
-            if (!validation.containsKey("error")) {
+                vertx.eventBus().request(Constant.EVENTBUS_CHECKIP, discoveryCredentials, checkipmessage -> {
 
-                vertx.eventBus().request(NmsConstant.DATABASECHECKIP, userData, ret -> {
+                    if (checkipmessage.succeeded()) {
 
-                    if (ret.succeeded()) {
+                        JsonObject jsonCheckIpData = new JsonObject(checkipmessage.result().body().toString());
 
-                        JsonObject check = new JsonObject(ret.result().body().toString());
-
-                        System.out.println(check);
-
-                        if (!check.containsKey("Error")) {
+                        if (!jsonCheckIpData.containsKey(Constant.ERROR)) {
 
                             vertx.executeBlocking(event -> {
 
                                 try {
 
-                                    result = utility.pingAvailiblity(userData.getString(NmsConstant.IP_ADDRESS).trim());
+                                    JsonObject result = utility.pingAvailiblity(discoveryCredentials.getString(Constant.IP_ADDRESS));
 
-                                    if (result.getString("status").equals("up")) {
+                                    if (result.getString(Constant.STATUS).equals(Constant.UP)) {
 
-                                       JsonObject trimData = utility.trimData(userData);
-                                       userData.mergeIn(trimData);
+                                        JsonObject discoveryResult = utility.discovery(discoveryCredentials);
 
-                                        JsonObject resultPlugin = utility.plugin(userData);
+                                        if (discoveryResult.getString(Constant.STATUS).equals(Constant.SUCCESS)) {
 
-                                        if (resultPlugin.getString("status").equals("success")) {
-
-                                            event.complete(resultPlugin);
+                                            event.complete(discoveryResult);
 
                                         } else {
 
-                                            error.put("status", "Plugin Discovery Failed");
-
-                                            event.fail(resultPlugin.encode());
+                                            event.fail(discoveryResult.encode());
 
                                         }
 
-                                    }
-                                    else if (result.getString("status").equals("down")){
-                                        error.put("status", "down");
+                                    } else if (result.getString(Constant.STATUS).equals(Constant.DOWN)) {
+
                                         event.fail(result.encode());
                                     }
 
 
-
-
                                 } catch (NullPointerException e) {
 
-                                    LOG.debug("NUll point Exception");
+                                    LOGGER.debug("NUll point Exception");
 
                                 } catch (Exception e) {
 
@@ -88,15 +73,13 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                 }
 
-                            }).onComplete(evehandler -> {
+                            }).onComplete(eventDbhandler -> {
 
-                                if (evehandler.succeeded()) {
+                                if (eventDbhandler.succeeded()) {
 
-                                    //JsonObject trimData = utility.trimData(userData);
+                                    vertx.eventBus().request(Constant.EVENTBUS_INSERTDB, discoveryCredentials, request -> {
 
-                                    vertx.eventBus().request("my.request.db", userData, request -> {
-
-                                        LOG.debug("Response {} ", request.result().body().toString());
+                                        LOGGER.debug("Response {} ", request.result().body().toString());
 
                                         JsonObject jsonObject = (JsonObject) request.result().body();
 
@@ -105,23 +88,20 @@ public class DiscoveryEngine extends AbstractVerticle {
                                     });
                                 } else {
 
-                                    handler.reply(evehandler.cause().toString());
+                                    handler.reply(eventDbhandler.cause().toString());
 
                                 }
                             });
-                        }
-                        else {
+                        } else {
 
-                            error.put("status", "Already Discovered");
-
-                            handler.reply(error);
+                            handler.reply(jsonCheckIpData);
 
                         }
                     }
                 });
             } else {
 
-                handler.reply("Validation Failed" + validation.encode());
+                handler.reply("Validation Failed" + validationResult.encode());
 
             }
         });

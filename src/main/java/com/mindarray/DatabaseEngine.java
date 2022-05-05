@@ -10,51 +10,51 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 
 public class DatabaseEngine extends AbstractVerticle {
-    private static final Logger LOG = LoggerFactory.getLogger(DatabaseEngine.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseEngine.class);
 
-    JsonObject jsonDbdata = new JsonObject();
-    JsonObject checkIPJson = new JsonObject();
+
 
     @Override
     public void start(Promise<Void> startPromise) {
-        LOG.debug("DATABASE ENGINE DEPLOYED");
+
+
+        LOGGER.debug("DATABASE ENGINE DEPLOYED");
 
         EventBus eventBus = vertx.eventBus();
 
-        eventBus.consumer(NmsConstant.DATABASECHECKIP, checkip -> {
+        eventBus.consumer(Constant.EVENTBUS_CHECKIP, checkip -> {
 
             JsonObject result = new JsonObject();
 
-            checkIPJson = (JsonObject) checkip.body();
+          JsonObject checkIPJson = new JsonObject(checkip.body().toString());
 
-            System.out.println(checkIPJson);
 
-            String ip = checkIPJson.getString(NmsConstant.IP_ADDRESS).trim();
+            //todo: try catch?
 
             vertx.executeBlocking(event -> {
                 try {
 
-                    if (!checkIP(ip)) {
+                    if (!checkIP(checkIPJson.getString(Constant.IP_ADDRESS))) {
 
-                        result.put("status", "Success");
+                        result.put(Constant.STATUS, Constant.SUCCESS);
 
                         event.complete(result);
                     } else {
 
-                        result.put("status", "Failed");
+                        result.put(Constant.STATUS, Constant.FAILED);
 
-                        result.put("Error", "Check IP FAIlED");
+                        result.put(Constant.ERROR, "Check IP FAIlED");
 
                         event.complete(result);
                     }
 
                 } catch (NullPointerException exception) {
 
-                    LOG.debug("NULL POINTER EXCEPTION");
+                    LOGGER.debug("NULL POINTER EXCEPTION");
 
-                } catch (SQLException e) {
+                } catch (SQLException exception) {
 
-                    throw new RuntimeException(e);
+                  LOGGER.debug("SQL EXCEPTION");
 
                 }
 
@@ -63,40 +63,42 @@ public class DatabaseEngine extends AbstractVerticle {
 
         });
 
-        eventBus.consumer("my.request.db", handler -> {
+        eventBus.consumer(Constant.EVENTBUS_INSERTDB, handler -> {
 
-            JsonObject result = new JsonObject();
-            jsonDbdata = (JsonObject) handler.body();
-
-            String host = jsonDbdata.getString(NmsConstant.IP_ADDRESS);
+            JsonObject jsonDbData = new JsonObject(handler.body().toString());
 
             vertx.executeBlocking(Blockinhandler -> {
+
+                JsonObject result = new JsonObject();
+
                 try {
 
-                    if (!checkIP(host)) {
+                    if (!checkIP(jsonDbData.getString(Constant.IP_ADDRESS))) {
 
-                        create(jsonDbdata);
+                        insertIntoDB(jsonDbData);
 
-                        result.put("Insertion", "Successful");
+                        result.put(Constant.DB_STATUS, Constant.SUCCESS);
 
                     } else {
 
-                        result.put("Insertion", "Unsuccessful");
+                        result.put(Constant.DB_STATUS, Constant.FAILED);
 
-                        result.put("Error", "Duplicate IP address");
+                        result.put(Constant.ERROR, "Duplicate IP address");
 
                     }
 
                 } catch (SQLException e) {
 
-                    result.put("Insertion", "Unsuccessful");
+                    result.put(Constant.DB_STATUS, Constant.FAILED);
 
-                    result.put("Error", e.getMessage());
+                    result.put(Constant.ERROR, e.getMessage());
                 }
 
-                Blockinhandler.complete();
+                Blockinhandler.complete(result);
 
-            }).onComplete(handler1 -> handler.reply(result));
+            }).onComplete(handler1 -> {
+                handler.reply(handler1.result());
+            });
 
         });
 
@@ -104,30 +106,35 @@ public class DatabaseEngine extends AbstractVerticle {
     }
 
     public Boolean checkIP(String host) throws SQLException {
-
-        Connection con = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/DiscoveryTemp", "root", "Mind@123");
-
-        Statement statement = con.createStatement();
-
-        String checkIpvalue = "select host from DiscoveryTemp.Discovery where host='" + host + "'";
-
-        ResultSet resultSet = statement.executeQuery(checkIpvalue);
-
-        return resultSet.next();
+        boolean result = false;
+        try (Connection connection = getConnection()) {
 
 
+            Statement statement = connection.createStatement();
+
+            String checkIpvalue = "select ipAddress from DiscoveryTemp.Discovery where ipAddress='" + host + "'";
+
+            ResultSet resultSet = statement.executeQuery(checkIpvalue);
+
+            result = resultSet.next();
+
+        } catch (SQLException exception) {
+
+           LOGGER.error(exception.getMessage());
+
+        }
+        return result;
     }
 
-    public void create(JsonObject jsonObject) throws SQLException {
-        Connection con = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/DiscoveryTemp", "root", "Mind@123");
-        PreparedStatement discoveryStmt;
-        String insertUserSql = "INSERT INTO DiscoveryTemp.Discovery(device,port,user,password,version,community,host)"
-                + "VALUES(?,?,?,?,?,?,?)";
-        discoveryStmt = con.prepareStatement(insertUserSql);
+    public void insertIntoDB(JsonObject jsonObject) throws SQLException {
+        try(Connection connection = getConnection()) {
 
-        discoveryStmt.setString(1, jsonObject.getString("device"));
+        PreparedStatement discoveryStmt;
+        String insertUserSql = "INSERT INTO DiscoveryTemp.Discovery(metricType,port,user,password,version,community,ipAddress)"
+                + "VALUES(?,?,?,?,?,?,?)";
+        discoveryStmt = connection.prepareStatement(insertUserSql);
+
+        discoveryStmt.setString(1, jsonObject.getString("metric.type"));
 
         discoveryStmt.setString(2, jsonObject.getString("port"));
 
@@ -139,9 +146,14 @@ public class DatabaseEngine extends AbstractVerticle {
 
         discoveryStmt.setString(6, jsonObject.getString("community"));
 
-        discoveryStmt.setString(7, jsonObject.getString("host"));
+        discoveryStmt.setString(7, jsonObject.getString("ip.address"));
 
         discoveryStmt.execute();
-
+        } catch (SQLException exception) {
+            LOGGER.error(exception.getMessage());
+        }
+    }
+    private static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection("jdbc:mysql://localhost:3306/DiscoveryTemp", "root", "Mind@123");
     }
 }
