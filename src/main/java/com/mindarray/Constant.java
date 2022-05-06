@@ -1,6 +1,8 @@
 package com.mindarray;
 
 public class Constant {
+
+    public static String CONTENT_TYPE = "application/json";
     public static String DISCOVERY = "/discovery";
     public static String EVENTBUS_DISCOVERY = "discovery";
 

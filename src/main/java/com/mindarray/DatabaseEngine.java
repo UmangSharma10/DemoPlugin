@@ -13,7 +13,6 @@ public class DatabaseEngine extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseEngine.class);
 
 
-
     @Override
     public void start(Promise<Void> startPromise) {
 
@@ -26,10 +25,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
             JsonObject result = new JsonObject();
 
-          JsonObject checkIPJson = new JsonObject(checkip.body().toString());
-
-
-            //todo: try catch?
+            JsonObject checkIPJson = new JsonObject(checkip.body().toString());
 
             vertx.executeBlocking(event -> {
                 try {
@@ -43,7 +39,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         result.put(Constant.STATUS, Constant.FAILED);
 
-                        result.put(Constant.ERROR, "Check IP FAIlED");
+                        result.put(Constant.ERROR, "IP ALREADY DISCOVERED");
 
                         event.complete(result);
                     }
@@ -54,7 +50,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                 } catch (SQLException exception) {
 
-                  LOGGER.debug("SQL EXCEPTION");
+                    LOGGER.debug("SQL EXCEPTION");
 
                 }
 
@@ -67,7 +63,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
             JsonObject jsonDbData = new JsonObject(handler.body().toString());
 
-            vertx.executeBlocking(Blockinhandler -> {
+            vertx.executeBlocking(blockinhandler -> {
 
                 JsonObject result = new JsonObject();
 
@@ -94,11 +90,9 @@ public class DatabaseEngine extends AbstractVerticle {
                     result.put(Constant.ERROR, e.getMessage());
                 }
 
-                Blockinhandler.complete(result);
+                blockinhandler.complete(result);
 
-            }).onComplete(handler1 -> {
-                handler.reply(handler1.result());
-            });
+            }).onComplete(handler1 -> handler.reply(handler1.result()));
 
         });
 
@@ -120,39 +114,40 @@ public class DatabaseEngine extends AbstractVerticle {
 
         } catch (SQLException exception) {
 
-           LOGGER.error(exception.getMessage());
+            LOGGER.error(exception.getMessage());
 
         }
         return result;
     }
 
     public void insertIntoDB(JsonObject jsonObject) throws SQLException {
-        try(Connection connection = getConnection()) {
+        try (Connection connection = getConnection()) {
 
-        PreparedStatement discoveryStmt;
-        String insertUserSql = "INSERT INTO DiscoveryTemp.Discovery(metricType,port,user,password,version,community,ipAddress)"
-                + "VALUES(?,?,?,?,?,?,?)";
-        discoveryStmt = connection.prepareStatement(insertUserSql);
+            PreparedStatement discoveryStmt;
+            String insertUserSql = "INSERT INTO DiscoveryTemp.Discovery(metricType,port,user,password,version,community,ipAddress)"
+                    + "VALUES(?,?,?,?,?,?,?)";
+            discoveryStmt = connection.prepareStatement(insertUserSql);
 
-        discoveryStmt.setString(1, jsonObject.getString("metric.type"));
+            discoveryStmt.setString(1, jsonObject.getString("metric.type"));
 
-        discoveryStmt.setString(2, jsonObject.getString("port"));
+            discoveryStmt.setString(2, jsonObject.getString("port"));
 
-        discoveryStmt.setString(3, jsonObject.getString("user"));
+            discoveryStmt.setString(3, jsonObject.getString("user"));
 
-        discoveryStmt.setString(4, jsonObject.getString("password"));
+            discoveryStmt.setString(4, jsonObject.getString("password"));
 
-        discoveryStmt.setString(5, jsonObject.getString("version"));
+            discoveryStmt.setString(5, jsonObject.getString("version"));
 
-        discoveryStmt.setString(6, jsonObject.getString("community"));
+            discoveryStmt.setString(6, jsonObject.getString("community"));
 
-        discoveryStmt.setString(7, jsonObject.getString("ip.address"));
+            discoveryStmt.setString(7, jsonObject.getString("ip.address"));
 
-        discoveryStmt.execute();
+            discoveryStmt.execute();
         } catch (SQLException exception) {
             LOGGER.error(exception.getMessage());
         }
     }
+
     private static Connection getConnection() throws SQLException {
         return DriverManager.getConnection("jdbc:mysql://localhost:3306/DiscoveryTemp", "root", "Mind@123");
     }

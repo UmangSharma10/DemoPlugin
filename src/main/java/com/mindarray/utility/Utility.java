@@ -142,9 +142,9 @@ public class Utility {
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
 
             String readInput;
-            //String decoder;
+            String decoder;
 
-           /* if ((readInput = stdInput.readLine()) != null){
+           if ((readInput = stdInput.readLine()) != null){
                 byte[] decodedBytes = Base64.getDecoder().decode(readInput);
                 decoder = new String(decodedBytes);
                 result = new JsonObject(decoder);
@@ -153,16 +153,16 @@ public class Utility {
                 decoder = new String(decodedBytes);
                 result = new JsonObject(decoder);
 
-            }*/
+            }
 
-            if ((readInput = stdInput.readLine()) != null) {
+            /*if ((readInput = stdInput.readLine()) != null) {
                 result.put(Constant.STATUS, readInput);
             }
             if ((readInput = stdError.readLine()) != null) {
                 result.put(Constant.STATUS, Constant.FAILED);
                 result.put(Constant.ERROR, readInput);
 
-            }
+            }*/
             stdInput.close();
             stdError.close();
         } catch (IOException exception) {

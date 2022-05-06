@@ -49,10 +49,9 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                         if (discoveryResult.getString(Constant.STATUS).equals(Constant.SUCCESS)) {
 
-                                            event.complete(discoveryResult);
+                                            event.complete( discoveryCredentials );
 
                                         } else {
-
                                             event.fail(discoveryResult.encode());
 
                                         }
