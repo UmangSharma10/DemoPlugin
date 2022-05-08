@@ -1,20 +1,25 @@
-import com.mindarray.APIServer;
-import com.mindarray.DatabaseEngine;
-import com.mindarray.DiscoveryEngine;
-import com.mindarray.PollerEngine;
+package com.mindarray;
+
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Bootstrap {
-    public static final Vertx vertx = Vertx.vertx();
 
+    public final static Vertx vertx = Vertx.vertx();
+
+
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryEngine.class);
     public static void main(String[] args) {
 
         start(APIServer.class.getName())
-                .compose(future -> start(DatabaseEngine.class.getName()))
 
-                .compose(future -> start(DiscoveryEngine.class.getName()))
+               .compose(future -> start(DatabaseEngine.class.getName()))
+
+               .compose(future -> start(DiscoveryEngine.class.getName()))
 
                 .compose(future -> start(PollerEngine.class.getName()))
 
@@ -22,10 +27,10 @@ public class Bootstrap {
 
                     if (handler.succeeded()) {
 
-                        System.out.println("deployed successfully");
+                        LOGGER.info("ALL VERTICLES DEPLOYED");
 
                     } else {
-                        System.out.println("Not deployed");
+                        LOGGER.error("ERROR IN DEPLOYING");
                     }
 
                 });
@@ -43,9 +48,8 @@ public class Bootstrap {
 
             } else {
 
-                System.out.println("Failed");
-
                 promise.fail(handler.cause());
+
             }
         });
         return promise.future();

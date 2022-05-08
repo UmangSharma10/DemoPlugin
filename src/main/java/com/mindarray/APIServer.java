@@ -1,5 +1,7 @@
 package com.mindarray;
 
+import com.mindarray.api.Credentials;
+import com.mindarray.api.Discovery;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
@@ -23,6 +25,7 @@ public class APIServer extends AbstractVerticle {
 
         router.post(Constant.DISCOVERY).method(HttpMethod.POST).handler(routingContext -> {
 
+            try{
             JsonObject requestBody = routingContext.getBodyAsJson();
 
             if (requestBody != null) {
@@ -33,17 +36,44 @@ public class APIServer extends AbstractVerticle {
 
                         LOGGER.debug("Response {} ", req.result().body());
 
-                        routingContext.response().setStatusCode(HttpResponseStatus.OK.code()).end(req.result().body().toString());
+                        routingContext.response().setStatusCode(HttpResponseStatus.OK.code()).putHeader("content-type", Constant.CONTENT_TYPE).end(req.result().body().toString());
 
                     } else {
 
-                        routingContext.response().setStatusCode(HttpResponseStatus.NOT_FOUND.code()).end(new JsonObject().put("error", "DATA NOT FOUND, PLEASE TRY AGAIN LATER").encode());
+                        routingContext.response().setStatusCode(HttpResponseStatus.NOT_FOUND.code()).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, "DATA NOT FOUND, Please try again." ).encode());
 
                     }
 
                 });
             }
+
+        }catch (Exception exception){
+                routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, "Invalid Json Format").encode());
+            }
+
         });
+
+
+        var discoveryRoute = Router.router(vertx);
+
+        var credentialRoute = Router.router(vertx);
+
+        router.mountSubRouter("/api/", discoveryRoute);
+
+        router.mountSubRouter("/api/", credentialRoute);
+
+        credentialRoute.route().handler(BodyHandler.create());
+
+        discoveryRoute.route().handler(BodyHandler.create());
+
+        Discovery discovery = new Discovery();
+
+        discovery.init(discoveryRoute);
+
+        Credentials credentials = new Credentials();
+
+        credentials.init(credentialRoute);
+
 
 
         vertx.createHttpServer().requestHandler(router).listen(8888).onComplete(handler -> {

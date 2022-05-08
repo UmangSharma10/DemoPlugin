@@ -18,9 +18,9 @@ public class DiscoveryEngine extends AbstractVerticle {
 
         LOGGER.debug("DISCOVERY ENGINE DEPLOYED");
 
-        vertx.eventBus().consumer(Constant.EVENTBUS_DISCOVERY, handler -> {
+        vertx.eventBus().<JsonObject>consumer(Constant.EVENTBUS_DISCOVERY, handler -> {
 
-            JsonObject discoveryCredentials = new JsonObject(handler.body().toString());
+            JsonObject discoveryCredentials = handler.body();
 
             utility.trimData(discoveryCredentials);
 
@@ -29,11 +29,11 @@ public class DiscoveryEngine extends AbstractVerticle {
 
             if (!validationResult.containsKey(Constant.ERROR)) {
 
-                vertx.eventBus().request(Constant.EVENTBUS_CHECKIP, discoveryCredentials, checkipmessage -> {
+                vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKIP, discoveryCredentials, checkipmessage -> {
 
                     if (checkipmessage.succeeded()) {
 
-                        JsonObject jsonCheckIpData = new JsonObject(checkipmessage.result().body().toString());
+                        JsonObject jsonCheckIpData = checkipmessage.result().body();
 
                         if (!jsonCheckIpData.containsKey(Constant.ERROR)) {
 
@@ -49,7 +49,12 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                         if (discoveryResult.getString(Constant.STATUS).equals(Constant.SUCCESS)) {
 
-                                            event.complete( discoveryCredentials );
+                                            discoveryCredentials.mergeIn(discoveryResult);
+                                            discoveryCredentials.remove("status");
+                                            discoveryCredentials.remove("error");
+                                            discoveryCredentials.remove("status.code");
+
+                                            event.complete(discoveryCredentials);
 
                                         } else {
                                             event.fail(discoveryResult.encode());
@@ -76,13 +81,13 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                                 if (eventDbhandler.succeeded()) {
 
-                                    vertx.eventBus().request(Constant.EVENTBUS_INSERTDB, discoveryCredentials, request -> {
+                                    vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_INSERTDB, discoveryCredentials, request -> {
 
                                         LOGGER.debug("Response {} ", request.result().body().toString());
 
-                                        JsonObject jsonObject = (JsonObject) request.result().body();
+                                        JsonObject dbData =  request.result().body();
 
-                                        handler.reply(jsonObject);
+                                        handler.reply(dbData);
 
                                     });
                                 } else {
