@@ -4,11 +4,21 @@ public class Constant {
 
     public static String CONTENT_TYPE = "application/json";
     public static String DISCOVERY = "/discovery";
+
+    public static String EVENTBUS_GETDISCOVERY = "get.discovery";
     public static String EVENTBUS_DISCOVERY = "discovery";
+
+    public static String EVENTBUS_UPDATE = "update";
+
+    public static String EVENTBUS_GETALL = "get.all";
 
     public static String EVENTBUS_CHECKIP = "checkip";
 
     public static String EVENTBUS_CHECKID_DISCOVERY = "check.id.discovery";
+
+    public static String EVENTBUS_CHECKID_CRED = "check.id.cred";
+
+    public static String EVENTBUS_CHECKID_JSON = "check.id.json";
 
     public static String EVENTBUS_CHECK_CREDNAME = "check.cred.name";
 
@@ -22,9 +32,13 @@ public class Constant {
 
     public static String EVENTBUS_INSERTCRED = "insert.cred";
 
-    public static String EVENTBUS_DELETE = "delete.discovery";
+    public static String EVENTBUS_DELETEDIS = "delete.discovery";
+
+    public static String EVENTBUS_DELETECRED = "delete.cred";
 
     public static String DIS_ID = "dis.id";
+
+    public static String CRED_ID = "cred.id";
 
 
     public static String DIS_NAME = "dis.name";
@@ -34,6 +48,7 @@ public class Constant {
     public static String CRED_NAME = "cred.name";
 
     public static String DB_STATUS_INSERTION = "insertion";
+
 
     public static String DB_STATUS_DELETION = "deletion";
 

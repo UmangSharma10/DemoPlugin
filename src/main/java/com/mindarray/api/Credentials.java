@@ -20,56 +20,122 @@ public class Credentials  {
         LOGGER.debug("Cred Route Deployed");
 
         discoveryRoute.post("/credential").setName("create").handler(this::validate).handler(this::create);
-        discoveryRoute.get("/credential").setName("GetByID").handler(this::validate).handler(this::getByID);
+        discoveryRoute.get("/credential/:id").setName("GetByID").handler(this::validate).handler(this::getByID);
         discoveryRoute.get("/credential").setName("GET").handler(this::validate).handler(this::get);
-        discoveryRoute.put("/credential").setName("DELETE").handler(this::validate).handler(this::delete);
+        discoveryRoute.put("/credential/:id").setName("DELETE").handler(this::validate).handler(this::delete);
         discoveryRoute.delete("/credential").setName("PUT").handler(this::validate).handler(this::update);
     }
 
     private void validate(RoutingContext routingContext) {
         JsonObject trimData = routingContext.getBodyAsJson();
-        try {
-            HashMap<String, Object> result;
-            if (!(trimData == null)) {
+        if (routingContext.currentRoute().getName().equals("create") || routingContext.currentRoute().getName().equals("update")) {
 
-                result = new HashMap<>(trimData.getMap());
+            try {
 
-                for (String key : result.keySet()) {
+                HashMap<String, Object> result;
 
-                    var val = result.get(key);
+                if (!(trimData == null)) {
 
-                    if(val instanceof String) {
-                        result.put(key, val.toString().trim());
+                    result = new HashMap<>(trimData.getMap());
+
+                    for (String key : result.keySet()) {
+
+                        var val = result.get(key);
+
+                        if (val instanceof String) {
+
+                            result.put(key, val.toString().trim());
+                        }
+
+                        trimData = new JsonObject(result);
+
+                        routingContext.setBody(trimData.toBuffer());
                     }
                 }
 
-                trimData = new JsonObject(result);
+                else
+                {
 
-                JsonObject finalTrimData = trimData;
-                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECK_CREDNAME, trimData, handler ->{
-                if (handler.succeeded()){
-                    JsonObject checkNameData = handler.result().body();
-                    if(!checkNameData.containsKey(Constant.ERROR)){
-                        routingContext.setBody(finalTrimData.toBuffer());
-                        LOGGER.info(finalTrimData.encode());
-                        routingContext.next();
-                    }else{
-                        routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(checkNameData.encode());
-                    }
+                    routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+
                 }
-                });
             }
-            else
-            {
+
+            catch (Exception exception) {
+
                 routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
             }
-
-        }catch(Exception exception)
-        {
-            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
         }
 
+        switch (routingContext.currentRoute().getName()) {
+            case "create":
+                LOGGER.debug("Create Route");
 
+                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECK_CREDNAME, trimData, handler -> {
+                    if (handler.succeeded()) {
+                        JsonObject checkNameData = handler.result().body();
+                        if (!checkNameData.containsKey(Constant.ERROR)) {
+                            routingContext.next();
+                        } else {
+                            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(checkNameData.encode());
+                        }
+                    }
+                });
+                break;
+            case "delete":
+                LOGGER.debug("delete Route");
+                String id = routingContext.pathParam("id");
+                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKID_CRED, id, deleteid -> {
+                    if (deleteid.succeeded()) {
+                        JsonObject deleteIdData = deleteid.result().body();
+                        if (!deleteIdData.containsKey(Constant.ERROR)) {
+                            routingContext.next();
+                        } else {
+                            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(deleteIdData.encode());
+                        }
+                    }
+                    else {
+                        LOGGER.error("failed");
+                    }
+                });
+                break;
+
+            case "update":
+                LOGGER.debug("Update Route");
+                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKID_JSON, trimData, handler -> {
+                    if (handler.succeeded()) {
+                        JsonObject checkUpdateData = handler.result().body();
+                        if (!checkUpdateData.containsKey(Constant.ERROR)) {
+                            routingContext.next();
+                        } else {
+                            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(checkUpdateData.encode());
+                        }
+                    }
+                });
+                break;
+            case "get":
+                LOGGER.debug("Get Routing");
+                String getId = routingContext.pathParam("id");
+                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKID_DISCOVERY, getId , get ->{
+                    if (get.succeeded()){
+                        JsonObject getDisData = get.result().body();
+                        if (!getDisData.containsKey(Constant.ERROR)){
+                            routingContext.next();
+                        }
+                        else {
+                            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(getDisData.encode());
+                        }
+                    }
+                    else {
+                        LOGGER.error("Error");
+                    }
+                });
+                break;
+            case "getAll" :
+                LOGGER.debug("Get ALL");
+                routingContext.next();
+
+        }
     }
 
 
@@ -80,6 +146,19 @@ public class Credentials  {
     }
 
     private void delete(RoutingContext routingContext) {
+        try {
+            String id = routingContext.pathParam("id");
+            System.out.println(id);
+
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_DELETECRED, id, deletebyID -> {
+                JsonObject deleteResult = deletebyID.result().body();
+                LOGGER.debug("Response {} ", deletebyID.result().body().toString());
+                routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(deleteResult.encode());
+            });
+
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
     }
 
     private void getByID(RoutingContext routingContext) {
