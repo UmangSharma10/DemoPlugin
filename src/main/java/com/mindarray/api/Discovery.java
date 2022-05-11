@@ -152,7 +152,7 @@ public class Discovery {
         try {
             JsonObject createData = routingContext.getBodyAsJson();
             LOGGER.debug(createData.encode());
-            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_UPDATE, createData, createHandler -> {
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_UPDATE_DIS, createData, createHandler -> {
                 JsonObject dbData = createHandler.result().body();
                 LOGGER.debug("Response {} ", createHandler.result().body().toString());
                 routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(dbData.encode());
@@ -195,7 +195,7 @@ public class Discovery {
     private void getAll(RoutingContext routingContext) {
         try {
            String id = "getAll";
-            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETALL, id, createHandler -> {
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETALLDIS, id, createHandler -> {
                 JsonObject getData = createHandler.result().body();
                 LOGGER.debug("Response {} ", createHandler.result().body().toString());
                 routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(getData.encode());

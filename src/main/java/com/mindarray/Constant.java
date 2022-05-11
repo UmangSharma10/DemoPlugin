@@ -8,9 +8,15 @@ public class Constant {
     public static String EVENTBUS_GETDISCOVERY = "get.discovery";
     public static String EVENTBUS_DISCOVERY = "discovery";
 
-    public static String EVENTBUS_UPDATE = "update";
+    public static String EVENTBUS_UPDATE_DIS = "update.discovery";
 
-    public static String EVENTBUS_GETALL = "get.all";
+    public static String EVENTBUS_UPDATE_CRED = "update.cred";
+
+    public static String EVENTBUS_GETALLDIS = "get.all.discovery";
+
+    public static String EVENTBUS_GETALLCRED = "get.all.cred";
+
+    public static String EVENTBUS_GETCREDBYID = "get.cred.by.id";
 
     public static String EVENTBUS_CHECKIP = "checkip";
 
@@ -40,6 +46,7 @@ public class Constant {
 
     public static String CRED_ID = "cred.id";
 
+    public static String PROTOCOL = "protocol";
 
     public static String DIS_NAME = "dis.name";
 
@@ -53,8 +60,6 @@ public class Constant {
     public static String DB_STATUS_DELETION = "deletion";
 
     public static String DB_STATUS_UPDATE = "update";
-
-    public static String DB_STATUS_GET = "get";
 
     public static String IP_ADDRESS = "ip.address";
 

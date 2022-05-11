@@ -20,10 +20,14 @@ public class Credentials  {
         LOGGER.debug("Cred Route Deployed");
 
         discoveryRoute.post("/credential").setName("create").handler(this::validate).handler(this::create);
-        discoveryRoute.get("/credential/:id").setName("GetByID").handler(this::validate).handler(this::getByID);
-        discoveryRoute.get("/credential").setName("GET").handler(this::validate).handler(this::get);
-        discoveryRoute.put("/credential/:id").setName("DELETE").handler(this::validate).handler(this::delete);
-        discoveryRoute.delete("/credential").setName("PUT").handler(this::validate).handler(this::update);
+
+        discoveryRoute.get("/credential/:id").setName("getbyid").handler(this::validate).handler(this::getByID);
+
+        discoveryRoute.get("/credential").setName("getAll").handler(this::validate).handler(this::getAll);
+
+        discoveryRoute.delete("/credential/:id").setName("delete").handler(this::validate).handler(this::delete);
+
+        discoveryRoute.put("/credential").setName("update").handler(this::validate).handler(this::update);
     }
 
     private void validate(RoutingContext routingContext) {
@@ -113,10 +117,10 @@ public class Credentials  {
                     }
                 });
                 break;
-            case "get":
+            case "getbyid":
                 LOGGER.debug("Get Routing");
                 String getId = routingContext.pathParam("id");
-                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKID_DISCOVERY, getId , get ->{
+                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKID_CRED, getId , get ->{
                     if (get.succeeded()){
                         JsonObject getDisData = get.result().body();
                         if (!getDisData.containsKey(Constant.ERROR)){
@@ -139,10 +143,32 @@ public class Credentials  {
     }
 
 
-    private void get(RoutingContext routingContext) {
+    private void getAll(RoutingContext routingContext) {
+        try {
+            String id = "getAll";
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETALLCRED, id, createHandler -> {
+                JsonObject getData = createHandler.result().body();
+                LOGGER.debug("Response {} ", createHandler.result().body().toString());
+                routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(getData.encode());
+            });
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
     }
 
     private void update(RoutingContext routingContext) {
+        try {
+            JsonObject createData = routingContext.getBodyAsJson();
+            LOGGER.debug(createData.encode());
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_UPDATE_CRED, createData, createHandler -> {
+                JsonObject dbData = createHandler.result().body();
+                LOGGER.debug("Response {} ", createHandler.result().body().toString());
+                routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(dbData.encode());
+            });
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
+
     }
 
     private void delete(RoutingContext routingContext) {
@@ -162,6 +188,16 @@ public class Credentials  {
     }
 
     private void getByID(RoutingContext routingContext) {
+        try {
+            String getId = routingContext.pathParam("id");
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETCREDBYID, getId, createHandler -> {
+                JsonObject getData = createHandler.result().body();
+                LOGGER.debug("Response {} ", createHandler.result().body().toString());
+                routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(getData.encode());
+            });
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
     }
 
     private void create(RoutingContext routingContext) {
