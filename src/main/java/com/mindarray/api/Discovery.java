@@ -29,8 +29,9 @@ public class Discovery {
         discoveryRoute.put("/discovery").setName("update").handler(this::validate).handler(this::update);
 
         discoveryRoute.post("/provision").setName("create").handler(this::createProvision);
-    }
 
+        discoveryRoute.post("/runDiscovery/:id").setName("run").handler(this::runDiscovery);
+    }
 
 
     private void validate(RoutingContext routingContext) {
@@ -61,17 +62,12 @@ public class Discovery {
 
                         routingContext.setBody(trimData.toBuffer());
                     }
-                }
-
-                else
-                {
+                } else {
 
                     routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
 
                 }
-            }
-
-            catch (Exception exception) {
+            } catch (Exception exception) {
 
                 routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
             }
@@ -85,7 +81,7 @@ public class Discovery {
                     if (handler.succeeded()) {
                         JsonObject checkNameData = handler.result().body();
                         if (!checkNameData.containsKey(Constant.ERROR)) {
-                           routingContext.next();
+                            routingContext.next();
                         } else {
                             routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(checkNameData.encode());
                         }
@@ -99,12 +95,11 @@ public class Discovery {
                     if (deleteid.succeeded()) {
                         JsonObject deleteIdData = deleteid.result().body();
                         if (!deleteIdData.containsKey(Constant.ERROR)) {
-                           routingContext.next();
+                            routingContext.next();
                         } else {
                             routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(deleteIdData.encode());
                         }
-                    }
-                    else {
+                    } else {
                         LOGGER.error("failed");
                     }
                 });
@@ -126,22 +121,20 @@ public class Discovery {
             case "get":
                 LOGGER.debug("Get Routing");
                 String getId = routingContext.pathParam("id");
-                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKID_DISCOVERY, getId , get ->{
-                   if (get.succeeded()){
-                       JsonObject getDisData = get.result().body();
-                       if (!getDisData.containsKey(Constant.ERROR)){
-                           routingContext.next();
-                       }
-                       else {
-                           routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(getDisData.encode());
-                       }
-                   }
-                   else {
-                       LOGGER.error("Error");
-                   }
+                Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKID_DISCOVERY, getId, get -> {
+                    if (get.succeeded()) {
+                        JsonObject getDisData = get.result().body();
+                        if (!getDisData.containsKey(Constant.ERROR)) {
+                            routingContext.next();
+                        } else {
+                            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(getDisData.encode());
+                        }
+                    } else {
+                        LOGGER.error("Error");
+                    }
                 });
                 break;
-            case "getAll" :
+            case "getAll":
                 LOGGER.debug("Get ALL");
                 routingContext.next();
 
@@ -164,8 +157,7 @@ public class Discovery {
 
     private void delete(RoutingContext routingContext) {
         try {
-             String id = routingContext.pathParam("id");
-            System.out.println(id);
+            String id = routingContext.pathParam("id");
 
             Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_DELETEDIS, id, deletebyID -> {
                 JsonObject deleteResult = deletebyID.result().body();
@@ -179,22 +171,22 @@ public class Discovery {
     }
 
     private void getById(RoutingContext routingContext) {
-    try {
-        String getId = routingContext.pathParam("id");
-        Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETDISCOVERY, getId, createHandler -> {
-            JsonObject getData = createHandler.result().body();
-            LOGGER.debug("Response {} ", createHandler.result().body().toString());
-            routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(getData.encode());
-        });
-    } catch (Exception exception) {
-        routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
-    }
+        try {
+            String getId = routingContext.pathParam("id");
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETDISCOVERY, getId, createHandler -> {
+                JsonObject getData = createHandler.result().body();
+                LOGGER.debug("Response {} ", createHandler.result().body().toString());
+                routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(getData.encode());
+            });
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
 
     }
 
     private void getAll(RoutingContext routingContext) {
         try {
-           String id = "getAll";
+            String id = "getAll";
             Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETALLDIS, id, createHandler -> {
                 JsonObject getData = createHandler.result().body();
                 LOGGER.debug("Response {} ", createHandler.result().body().toString());
@@ -220,6 +212,33 @@ public class Discovery {
     }
 
     private void createProvision(RoutingContext routingContext) {
+
+    }
+
+    private void runDiscovery(RoutingContext routingContext) {
+        try {
+            String id = routingContext.pathParam("id");
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_RUN_DISCOVERY, id, runDiscoverybyID -> {
+
+                if (runDiscoverybyID.succeeded()) {
+                    JsonObject runResult = runDiscoverybyID.result().body();
+                    LOGGER.debug("Response {} ", runDiscoverybyID.result().body().toString());
+                    routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(runResult.encode());
+                } else {
+
+                    String runResult = runDiscoverybyID.cause().getMessage();
+                    LOGGER.debug("Response {} ", runResult);
+                    routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(runResult);
+                }
+
+
+            });
+
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
+
+
     }
 
 }

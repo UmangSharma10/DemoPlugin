@@ -109,22 +109,19 @@ public class DatabaseEngine extends AbstractVerticle {
 
                     if (checkCredId(jsonDbData.getLong(Constant.CRED_ID))) {
 
-                        if(checkCredProfile(jsonDbData.getLong(Constant.CRED_ID))){
+                        if (checkCredProfile(jsonDbData.getLong(Constant.CRED_ID))) {
                             boolean value = deleteCredDb(jsonDbData.getLong(Constant.CRED_ID));
 
                             if (value) {
                                 result.put(Constant.DB_STATUS_DELETION, Constant.SUCCESS);
-                            }
-                            else {
+                            } else {
                                 result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
                             }
-                        }
-                        else {
+                        } else {
                             result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
 
                             result.put(Constant.ERROR, "Already Used in Discovery");
                         }
-
 
 
                     } else {
@@ -163,11 +160,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         event.complete(result);
 
-                    }
-
-                    else
-
-                    {
+                    } else {
                         result.put(Constant.STATUS, Constant.FAILED);
 
                         result.put(Constant.ERROR, "WRONG ID");
@@ -193,7 +186,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
             long longid = Long.parseLong(id);
 
-            JsonObject userCredData = new JsonObject().put(Constant.CRED_ID,longid);
+            JsonObject userCredData = new JsonObject().put(Constant.CRED_ID, longid);
 
             Bootstrap.vertx.executeBlocking(event -> {
 
@@ -205,11 +198,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         event.complete(result);
 
-                    }
-
-                    else
-
-                    {
+                    } else {
                         result.put(Constant.STATUS, Constant.FAILED);
 
                         result.put(Constant.ERROR, "WRONG ID");
@@ -265,7 +254,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
         });
 
-        eventBus.<String>consumer(Constant.EVENTBUS_GETCREDBYID, getIdhandler ->{
+        eventBus.<String>consumer(Constant.EVENTBUS_GETCREDBYID, getIdhandler -> {
             String id = getIdhandler.body();
             long longid = Long.parseLong(id);
             JsonObject getJsonById = new JsonObject().put(Constant.CRED_ID, longid);
@@ -303,7 +292,6 @@ public class DatabaseEngine extends AbstractVerticle {
             }).onComplete(handler1 -> getIdhandler.reply(handler1.result()));
 
 
-
         });
 
         eventBus.<String>consumer(Constant.EVENTBUS_GETALLCRED, getIdhandler -> vertx.executeBlocking(blockinhandler -> {
@@ -331,7 +319,6 @@ public class DatabaseEngine extends AbstractVerticle {
         }).onComplete(handler1 -> getIdhandler.reply(handler1.result())));
 
 
-
         //subroutediscovery
         eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECKID_JSON, apiDisId -> {
             JsonObject result = new JsonObject();
@@ -349,11 +336,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         event.complete(result);
 
-                    }
-
-                    else
-
-                    {
+                    } else {
                         result.put(Constant.STATUS, Constant.FAILED);
 
                         result.put(Constant.ERROR, "WRONG ID");
@@ -379,7 +362,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
             long longid = Long.parseLong(id);
 
-            JsonObject userCredData = new JsonObject().put(DIS_ID,longid);
+            JsonObject userCredData = new JsonObject().put(DIS_ID, longid);
 
             Bootstrap.vertx.executeBlocking(event -> {
 
@@ -391,11 +374,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         event.complete(result);
 
-                    }
-
-                    else
-
-                    {
+                    } else {
                         result.put(Constant.STATUS, Constant.FAILED);
 
                         result.put(Constant.ERROR, "WRONG ID");
@@ -539,8 +518,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         if (value) {
                             result.put(Constant.DB_STATUS_DELETION, Constant.SUCCESS);
-                        }
-                        else {
+                        } else {
                             result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
                         }
 
@@ -565,7 +543,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
         });
 
-        eventBus.<String>consumer(Constant.EVENTBUS_GETDISCOVERY, getIdhandler ->{
+        eventBus.<String>consumer(Constant.EVENTBUS_GETDISCOVERY, getIdhandler -> {
             String id = getIdhandler.body();
             long longid = Long.parseLong(id);
             JsonObject getJsonById = new JsonObject().put(DIS_ID, longid);
@@ -603,7 +581,6 @@ public class DatabaseEngine extends AbstractVerticle {
             }).onComplete(handler1 -> getIdhandler.reply(handler1.result()));
 
 
-
         });
 
         eventBus.<String>consumer(Constant.EVENTBUS_GETALLDIS, getIdhandler -> vertx.executeBlocking(blockinhandler -> {
@@ -612,11 +589,11 @@ public class DatabaseEngine extends AbstractVerticle {
 
             try {
 
-                    JsonArray value = getAllDis();
+                JsonArray value = getAllDis();
 
-                    result.put(Constant.STATUS, Constant.SUCCESS);
+                result.put(Constant.STATUS, Constant.SUCCESS);
 
-                    result.put("Result", value);
+                result.put("Result", value);
 
 
             } catch (Exception exception) {
@@ -629,6 +606,89 @@ public class DatabaseEngine extends AbstractVerticle {
             blockinhandler.complete(result);
 
         }).onComplete(handler1 -> getIdhandler.reply(handler1.result())));
+
+        eventBus.<String>consumer(Constant.EVENTBUS_RUN_DISCOVERY, runhandler -> {
+            String id = runhandler.body();
+            long longid = Long.parseLong(id);
+            JsonObject getJsonById = new JsonObject().put(DIS_ID, longid);
+            vertx.<JsonObject>executeBlocking(blockinhandler -> {
+
+                JsonObject result = new JsonObject();
+
+                try {
+
+                    if (checkDisId(getJsonById.getLong(DIS_ID))) {
+
+                        JsonObject discoveryStatus = checkDiscoveryStatus(getJsonById.getLong(DIS_ID));
+
+                        if (discoveryStatus.getString("discovery").equals("false")) {
+
+                            JsonObject value = getRundiscoveryQuery(getJsonById.getLong(DIS_ID));
+
+                            value.put("category", "discovery");
+                            LOGGER.debug(value.encode());
+
+                            result.put(Constant.STATUS, Constant.SUCCESS);
+
+                            blockinhandler.complete(value);
+
+                        } else {
+                            result.put(Constant.STATUS, Constant.FAILED);
+
+                            result.put(Constant.ERROR, "Already Discovered");
+
+                            blockinhandler.fail(result.encode());
+
+
+                        }
+
+
+                    } else {
+
+                        result.put(Constant.STATUS, Constant.FAILED);
+
+                        result.put(Constant.ERROR, "Wrong Discovery ID");
+
+                        blockinhandler.fail(result.encode());
+
+
+                    }
+
+                } catch (Exception exception) {
+
+                    result.put(Constant.STATUS, Constant.FAILED);
+
+                    result.put(Constant.ERROR, exception.getMessage());
+
+                    blockinhandler.fail(result.encode());
+                }
+
+
+            }).onComplete(handler1 -> {
+
+
+                if (handler1.succeeded()) {
+                    JsonObject value = handler1.result();
+                    eventBus.<JsonObject>request(Constant.EVENTBUS_DISCOVERY, value, discovery -> {
+                        LOGGER.debug("Response {} ", discovery.result().body());
+                        //data return in json
+                        JsonObject result = discovery.result().body();
+
+                        if (!result.containsKey(Constant.ERROR)) {
+                            runhandler.reply(result);
+                        } else {
+                            runhandler.reply(result);
+                        }
+
+                    });
+                } else {
+                    runhandler.fail(-1, handler1.cause().getMessage());
+
+                }
+            });
+
+
+        });
 
         //Discovery
         eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECKIP, checkip -> {
@@ -710,7 +770,66 @@ public class DatabaseEngine extends AbstractVerticle {
     }
 
 
-    public boolean checkCredProfile(long id){
+    public JsonObject checkDiscoveryStatus(long id) {
+        JsonObject result = new JsonObject();
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+
+            String checkIpvalue = "select discovery from DiscoveryTemp.discoveryTable where id='" + id + "'";
+
+            ResultSet resultSet = statement.executeQuery(checkIpvalue);
+
+            if (resultSet.next()) {
+                boolean discovery = resultSet.getBoolean("discovery");
+                result.put("discovery", discovery);
+            }
+
+        } catch (Exception exception) {
+
+            LOGGER.error(exception.getMessage());
+
+        }
+
+        return result;
+    }
+
+    public JsonObject getRundiscoveryQuery(long id) {
+        JsonObject result = new JsonObject();
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+            //select * from discoveryTable as d join credentialsTable as a on d.credProfile = a.id where d.id = 90007 ;
+            String getById = "select * from DiscoveryTemp.discoveryTable as d join DiscoveryTemp.credentialsTable as c on d.credProfile = c.id where d.id='" + id + "'";
+            ResultSet resultSet = statement.executeQuery(getById);
+            if (resultSet.next()) {
+
+                String username = resultSet.getString("username");
+                String password = resultSet.getString("password");
+                String community = resultSet.getString("community");
+                String version = resultSet.getString("version");
+                String ip = resultSet.getString("ipAddress");
+                String type = resultSet.getString("metricType");
+                int port = resultSet.getInt("port");
+
+
+                result.put(DIS_ID, id);
+                result.put(Constant.USER, username);
+                result.put(Constant.PASSWORD, password);
+                result.put(Constant.COMMUNITY, community);
+                result.put(Constant.VERSION, version);
+                result.put(Constant.IP_ADDRESS, ip);
+                result.put(Constant.METRIC_TYPE, type);
+                result.put(Constant.PORT, port);
+            }
+
+
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage());
+        }
+        return result;
+
+    }
+
+    public boolean checkCredProfile(long id) {
         boolean result = false;
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
@@ -729,7 +848,8 @@ public class DatabaseEngine extends AbstractVerticle {
 
         return result;
     }
-    public JsonArray getAllCred(){
+
+    public JsonArray getAllCred() {
         JsonArray arrayResult = new JsonArray();
 
         try (Connection connection = getConnection()) {
@@ -743,25 +863,28 @@ public class DatabaseEngine extends AbstractVerticle {
                 String username = resultSet.getString("username");
                 String password = resultSet.getString("password");
                 String community = resultSet.getString("community");
+                String version = resultSet.getString("version");
                 String credName = resultSet.getString("credName");
 
                 result.put(Constant.CRED_ID, credId);
-                result.put(Constant.PROTOCOL , protocol);
-                result.put(Constant.USER , username);
+                result.put(Constant.PROTOCOL, protocol);
+                result.put(Constant.USER, username);
                 result.put(Constant.PASSWORD, password);
                 result.put(Constant.COMMUNITY, community);
+                result.put(Constant.VERSION, version);
                 result.put(Constant.CRED_NAME, credName);
 
                 arrayResult.add(result);
             }
 
 
-        }catch (Exception exception){
+        } catch (Exception exception) {
             LOGGER.error(exception.getMessage());
         }
         return arrayResult;
     }
-    public JsonArray getAllDis(){
+
+    public JsonArray getAllDis() {
         JsonArray arrayResult = new JsonArray();
 
         try (Connection connection = getConnection()) {
@@ -778,8 +901,8 @@ public class DatabaseEngine extends AbstractVerticle {
                 String disName = resultSet.getString("disName");
 
                 result.put(DIS_ID, disId);
-                result.put(Constant.IP_ADDRESS , ip);
-                result.put(Constant.METRIC_TYPE , type);
+                result.put(Constant.IP_ADDRESS, ip);
+                result.put(Constant.METRIC_TYPE, type);
                 result.put("cred.profile", credProfile);
                 result.put(Constant.PORT, port);
                 result.put(Constant.DIS_NAME, disName);
@@ -788,15 +911,15 @@ public class DatabaseEngine extends AbstractVerticle {
             }
 
 
-        }catch (Exception exception){
+        } catch (Exception exception) {
             LOGGER.error(exception.getMessage());
         }
         return arrayResult;
     }
 
-    public void updateIntoDisDB(JsonObject updateDb){
+    public void updateIntoDisDB(JsonObject updateDb) {
 
-        try (Connection connection = getConnection()){
+        try (Connection connection = getConnection()) {
 
 
             PreparedStatement discoveryStmt;
@@ -808,7 +931,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
             discoveryStmt.setString(3, updateDb.getString("dis.name"));
 
-            discoveryStmt.setLong(4 , updateDb.getLong(DIS_ID));
+            discoveryStmt.setLong(4, updateDb.getLong(DIS_ID));
 
 
             discoveryStmt.executeUpdate();
@@ -819,9 +942,9 @@ public class DatabaseEngine extends AbstractVerticle {
 
     }
 
-    public void updateIntoCredDB(JsonObject updateDb){
+    public void updateIntoCredDB(JsonObject updateDb) {
 
-        try (Connection connection = getConnection()){
+        try (Connection connection = getConnection()) {
 
 
             PreparedStatement discoveryStmt;
@@ -833,9 +956,9 @@ public class DatabaseEngine extends AbstractVerticle {
 
             discoveryStmt.setString(3, updateDb.getString(Constant.COMMUNITY));
 
-            discoveryStmt.setString(4 , updateDb.getString(Constant.VERSION));
+            discoveryStmt.setString(4, updateDb.getString(Constant.VERSION));
 
-            discoveryStmt.setString(5 , updateDb.getString(Constant.CRED_NAME));
+            discoveryStmt.setString(5, updateDb.getString(Constant.CRED_NAME));
 
             discoveryStmt.setLong(6, updateDb.getLong(Constant.CRED_ID));
 
@@ -847,13 +970,29 @@ public class DatabaseEngine extends AbstractVerticle {
         }
 
     }
-    public JsonObject getByDisID(long id){
+
+    public void updateDiscovery(Long id) {
+
+        try (Connection connection = getConnection()) {
+            PreparedStatement discoveryStmt;
+            String updateUserSql = "UPDATE DiscoveryTemp.discoveryTable SET discovery = true WHERE ID = ?";
+            discoveryStmt = connection.prepareStatement(updateUserSql);
+            discoveryStmt.setLong(1, id);
+            discoveryStmt.executeUpdate();
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage());
+        }
+
+
+    }
+
+    public JsonObject getByDisID(long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
             String getById = "select * from DiscoveryTemp.discoveryTable where id='" + id + "'";
             ResultSet resultSet = statement.executeQuery(getById);
-            if(resultSet.next()) {
+            if (resultSet.next()) {
                 long disId = resultSet.getLong("id");
                 String ip = resultSet.getString("ipAddress");
                 String type = resultSet.getString("metricType");
@@ -862,44 +1001,46 @@ public class DatabaseEngine extends AbstractVerticle {
                 String disName = resultSet.getString("disName");
 
                 result.put(DIS_ID, disId);
-                result.put(Constant.IP_ADDRESS , ip);
-                result.put(Constant.METRIC_TYPE , type);
+                result.put(Constant.IP_ADDRESS, ip);
+                result.put(Constant.METRIC_TYPE, type);
                 result.put("cred.profile", credProfile);
                 result.put(Constant.PORT, port);
                 result.put(Constant.DIS_NAME, disName);
             }
 
 
-        }catch (Exception exception){
+        } catch (Exception exception) {
             LOGGER.error(exception.getMessage());
         }
         return result;
     }
 
-    public JsonObject getByCredID(long id){
+    public JsonObject getByCredID(long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
             String getById = "select * from DiscoveryTemp.credentialsTable where id='" + id + "'";
             ResultSet resultSet = statement.executeQuery(getById);
-            if(resultSet.next()) {
+            if (resultSet.next()) {
                 long credId = resultSet.getLong("id");
                 String protocol = resultSet.getString("protocol");
                 String username = resultSet.getString("username");
                 String password = resultSet.getString("password");
                 String community = resultSet.getString("community");
+                String version = resultSet.getString("version");
                 String credName = resultSet.getString("credName");
 
                 result.put(Constant.CRED_ID, credId);
-                result.put(Constant.PROTOCOL , protocol);
-                result.put(Constant.USER , username);
+                result.put(Constant.PROTOCOL, protocol);
+                result.put(Constant.USER, username);
                 result.put(Constant.PASSWORD, password);
                 result.put(Constant.COMMUNITY, community);
+                result.put(Constant.VERSION, version);
                 result.put(Constant.CRED_NAME, credName);
             }
 
 
-        }catch (Exception exception){
+        } catch (Exception exception) {
             LOGGER.error(exception.getMessage());
         }
         return result;
@@ -954,7 +1095,9 @@ public class DatabaseEngine extends AbstractVerticle {
 
         return result;
     }
+
     public Boolean checkDisId(long id) {
+
         boolean result = false;
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
@@ -1039,6 +1182,7 @@ public class DatabaseEngine extends AbstractVerticle {
                     + "VALUES(?,?,?,?,?,?)";
             discoveryStmt = connection.prepareStatement(insertUserSql);
 
+
             // discoveryStmt.setString(1, jsonObject.getString("id"));
 
             discoveryStmt.setString(1, jsonObject.getString("protocol"));
@@ -1063,9 +1207,11 @@ public class DatabaseEngine extends AbstractVerticle {
         try (Connection connection = getConnection()) {
 
             PreparedStatement discoveryStmt;
-            String insertUserSql = "INSERT INTO DiscoveryTemp.discoveryTable(ipAddress,metricType,credProfile,port,disName)"
-                    + "VALUES(?,?,?,?,?)";
+            String insertUserSql = "INSERT INTO DiscoveryTemp.discoveryTable(ipAddress,metricType,credProfile,port,disName,discovery)"
+                    + "VALUES(?,?,?,?,?,?)";
             discoveryStmt = connection.prepareStatement(insertUserSql);
+
+            boolean discovery = false;
 
 
             discoveryStmt.setString(1, jsonObject.getString("ip.address"));
@@ -1077,6 +1223,8 @@ public class DatabaseEngine extends AbstractVerticle {
             discoveryStmt.setInt(4, jsonObject.getInteger("port"));
 
             discoveryStmt.setString(5, jsonObject.getString("dis.name"));
+
+            discoveryStmt.setBoolean(6, discovery);
 
 
             discoveryStmt.execute();
@@ -1098,7 +1246,6 @@ public class DatabaseEngine extends AbstractVerticle {
             result = resultSet > 0;
 
 
-
         } catch (Exception exception) {
             LOGGER.error(exception.getMessage());
         }
@@ -1117,7 +1264,6 @@ public class DatabaseEngine extends AbstractVerticle {
             int resultSet = statement.executeUpdate(value);
 
             result = resultSet > 0;
-
 
 
         } catch (Exception exception) {

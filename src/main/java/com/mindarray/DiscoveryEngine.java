@@ -8,106 +8,61 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DiscoveryEngine extends AbstractVerticle {
+import static com.mindarray.Constant.DIS_ID;
 
-    Utility utility = new Utility();
+public class DiscoveryEngine extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryEngine.class);
 
+    DatabaseEngine databaseEngine = new DatabaseEngine();
+    Utility utility = new Utility();
     @Override
     public void start(Promise<Void> startPromise) {
 
         LOGGER.debug("DISCOVERY ENGINE DEPLOYED");
 
         vertx.eventBus().<JsonObject>consumer(Constant.EVENTBUS_DISCOVERY, handler -> {
-
             JsonObject discoveryCredentials = handler.body();
+               Bootstrap.vertx.<JsonObject>executeBlocking(event -> {
+                    try{
+                        JsonObject result = utility.pingAvailiblity(discoveryCredentials.getString(Constant.IP_ADDRESS));
+                        if (result.getString(Constant.STATUS).equals(Constant.UP)) {
 
-            utility.trimData(discoveryCredentials);
+                            JsonObject discoveryResult = utility.discovery(discoveryCredentials);
 
+                            if (discoveryResult.getString(Constant.STATUS).equals(Constant.SUCCESS)) {
 
-            JsonObject validationResult = ValidationUtil.validation(discoveryCredentials);
+                                discoveryCredentials.mergeIn(discoveryResult);
 
-            if (!validationResult.containsKey(Constant.ERROR)) {
+                                event.complete(discoveryCredentials);
 
-                vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_CHECKIP, discoveryCredentials, checkipmessage -> {
+                            } else {
+                                event.fail(discoveryResult.encode());
 
-                    if (checkipmessage.succeeded()) {
+                            }
 
-                        JsonObject jsonCheckIpData = checkipmessage.result().body();
+                        } else if (result.getString(Constant.STATUS).equals(Constant.DOWN)) {
 
-                        if (!jsonCheckIpData.containsKey(Constant.ERROR)) {
-
-                            vertx.executeBlocking(event -> {
-
-                                try {
-
-                                    JsonObject result = utility.pingAvailiblity(discoveryCredentials.getString(Constant.IP_ADDRESS));
-
-                                    if (result.getString(Constant.STATUS).equals(Constant.UP)) {
-
-                                        JsonObject discoveryResult = utility.discovery(discoveryCredentials);
-
-                                        if (discoveryResult.getString(Constant.STATUS).equals(Constant.SUCCESS)) {
-
-                                            discoveryCredentials.mergeIn(discoveryResult);
-                                            discoveryCredentials.remove("status");
-                                            discoveryCredentials.remove("error");
-                                            discoveryCredentials.remove("status.code");
-
-                                            event.complete(discoveryCredentials);
-
-                                        } else {
-                                            event.fail(discoveryResult.encode());
-
-                                        }
-
-                                    } else if (result.getString(Constant.STATUS).equals(Constant.DOWN)) {
-
-                                        event.fail(result.encode());
-                                    }
-
-
-                                } catch (NullPointerException e) {
-
-                                    LOGGER.debug("NUll point Exception");
-
-                                } catch (Exception e) {
-
-                                    throw new RuntimeException(e);
-
-                                }
-
-                            }).onComplete(eventDbhandler -> {
-
-                                if (eventDbhandler.succeeded()) {
-
-                                    vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_INSERTDB, discoveryCredentials, request -> {
-
-                                        LOGGER.debug("Response {} ", request.result().body().toString());
-
-                                        JsonObject dbData =  request.result().body();
-
-                                        handler.reply(dbData);
-
-                                    });
-                                } else {
-
-                                    handler.reply(eventDbhandler.cause().toString());
-
-                                }
-                            });
-                        } else {
-
-                            handler.reply(jsonCheckIpData);
-
+                            event.fail(result.encode());
                         }
+                    }catch (Exception exception){
+                        LOGGER.error(exception.getMessage());
                     }
-                });
-            } else {
+               }).onComplete(resultHandler ->{
+                   JsonObject result = new JsonObject();
+                   JsonObject discoveryData = resultHandler.result();
 
-                handler.reply("Validation Failed" + validationResult.encode());
+                   if (!discoveryData.containsKey("error")){
+                       databaseEngine.updateDiscovery(discoveryData.getLong(DIS_ID));
+                       result.put(Constant.STATUS, Constant.SUCCESS);
 
-            }
+                       result.put("Discovery", Constant.SUCCESS);
+                       handler.reply(result);
+                   }
+                   else {
+                       handler.reply(discoveryData);
+                   }
+               });
+
         });
         startPromise.complete();
     }

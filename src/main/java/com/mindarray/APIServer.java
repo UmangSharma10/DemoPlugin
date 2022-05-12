@@ -23,7 +23,7 @@ public class APIServer extends AbstractVerticle {
 
         router.route().handler(BodyHandler.create());
 
-        router.post(Constant.DISCOVERY).method(HttpMethod.POST).handler(routingContext -> {
+      /*  router.post(Constant.DISCOVERY).method(HttpMethod.POST).handler(routingContext -> {
 
             try{
             JsonObject requestBody = routingContext.getBodyAsJson();
@@ -51,7 +51,7 @@ public class APIServer extends AbstractVerticle {
                 routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, "Invalid Json Format").encode());
             }
 
-        });
+        });*/
 
 
         var discoveryRoute = Router.router(vertx);

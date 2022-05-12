@@ -124,7 +124,6 @@ public class Utility {
 
     public JsonObject discovery(JsonObject pluginJson) {
         JsonObject result = new JsonObject();
-        pluginJson.put("category", "discovery");
         try {
             List<String> commands = new ArrayList<>();
 
@@ -154,15 +153,7 @@ public class Utility {
                 result = new JsonObject(decoder);
 
             }
-
-            /*if ((readInput = stdInput.readLine()) != null) {
-                result.put(Constant.STATUS, readInput);
-            }
-            if ((readInput = stdError.readLine()) != null) {
-                result.put(Constant.STATUS, Constant.FAILED);
-                result.put(Constant.ERROR, readInput);
-
-            }*/
+           result.remove("category");
             stdInput.close();
             stdError.close();
         } catch (IOException exception) {
@@ -170,7 +161,6 @@ public class Utility {
             LOGGER.debug("IOEXCEPTION");
 
         }
-        pluginJson.remove("category");
 
 
         return result;

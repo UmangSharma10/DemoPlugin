@@ -5,6 +5,7 @@ public class Constant {
     public static String CONTENT_TYPE = "application/json";
     public static String DISCOVERY = "/discovery";
 
+    public static String EVENTBUS_RUN_DISCOVERY = "run.discovery";
     public static String EVENTBUS_GETDISCOVERY = "get.discovery";
     public static String EVENTBUS_DISCOVERY = "discovery";
 
