@@ -5,9 +5,17 @@ public class Constant {
     public static String CONTENT_TYPE = "application/json";
     public static String DISCOVERY = "/discovery";
 
+    public static String EVENTBUS_PROVISION = "provision";
+
+    public static String EVENTBUS_POLLING = "polling";
+
+    public static String EVENTBUS_GETMETRIC_FOR_POLLING = "get.metric.polling";
+
     public static String EVENTBUS_RUN_DISCOVERY = "run.discovery";
     public static String EVENTBUS_GETDISCOVERY = "get.discovery";
     public static String EVENTBUS_DISCOVERY = "discovery";
+
+    public static String EVENTBUS_INSERT_INTO_PROVISION = "insert.into.provision";
 
     public static String EVENTBUS_UPDATE_DIS = "update.discovery";
 

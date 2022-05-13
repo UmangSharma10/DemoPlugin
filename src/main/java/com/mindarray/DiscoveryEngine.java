@@ -1,7 +1,6 @@
 package com.mindarray;
 
 import com.mindarray.utility.Utility;
-import com.mindarray.utility.ValidationUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
@@ -27,7 +26,7 @@ public class DiscoveryEngine extends AbstractVerticle {
                         JsonObject result = utility.pingAvailiblity(discoveryCredentials.getString(Constant.IP_ADDRESS));
                         if (result.getString(Constant.STATUS).equals(Constant.UP)) {
 
-                            JsonObject discoveryResult = utility.discovery(discoveryCredentials);
+                            JsonObject discoveryResult = utility.spawning(discoveryCredentials);
 
                             if (discoveryResult.getString(Constant.STATUS).equals(Constant.SUCCESS)) {
 

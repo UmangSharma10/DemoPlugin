@@ -28,7 +28,7 @@ public class Discovery {
 
         discoveryRoute.put("/discovery").setName("update").handler(this::validate).handler(this::update);
 
-        discoveryRoute.post("/provision").setName("create").handler(this::createProvision);
+        discoveryRoute.post("/provision/:id").setName("provision").handler(this::createProvision);
 
         discoveryRoute.post("/runDiscovery/:id").setName("run").handler(this::runDiscovery);
     }
@@ -212,6 +212,27 @@ public class Discovery {
     }
 
     private void createProvision(RoutingContext routingContext) {
+        try {
+            String id = routingContext.pathParam("id");
+            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_PROVISION, id, provisionByID -> {
+
+                if (provisionByID.succeeded()) {
+                    JsonObject runResult = provisionByID.result().body();
+                    LOGGER.debug("Response {} ", provisionByID.result().body().toString());
+                    routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(runResult.encode());
+                } else {
+
+                    String runResult = provisionByID.cause().getMessage();
+                    LOGGER.debug("Response {} ", runResult);
+                    routingContext.response().setStatusCode(200).putHeader("content-type", Constant.CONTENT_TYPE).end(runResult);
+                }
+
+
+            });
+
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
 
     }
 

@@ -72,11 +72,15 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         result.put(Constant.CRED_PROFILE, credID);
 
+                        blockinhandler.complete(result);
+
                     } else {
 
                         result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
 
                         result.put(Constant.ERROR, "Duplicate cred.name");
+
+                        blockinhandler.fail(result.encode());
 
                     }
 
@@ -85,11 +89,22 @@ public class DatabaseEngine extends AbstractVerticle {
                     result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
 
                     result.put(Constant.ERROR, exception.getMessage());
+
+                    blockinhandler.fail(result.encode());
                 }
 
-                blockinhandler.complete(result);
 
-            }).onComplete(handler1 -> handler.reply(handler1.result()));
+
+            }).onComplete(handler1 -> {
+                if (handler1.succeeded()){
+                    handler.reply(handler1.result());
+                }
+                else {
+                    handler.fail(-1, handler1.cause().getMessage());
+                }
+
+
+            });
 
         });
 
@@ -583,7 +598,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
         });
 
-        eventBus.<String>consumer(Constant.EVENTBUS_GETALLDIS, getIdhandler -> vertx.executeBlocking(blockinhandler -> {
+        eventBus.<String>consumer(Constant.EVENTBUS_GETALLDIS, getIdhandler -> Bootstrap.vertx.executeBlocking(blockinhandler -> {
 
             JsonObject result = new JsonObject();
 
@@ -611,7 +626,7 @@ public class DatabaseEngine extends AbstractVerticle {
             String id = runhandler.body();
             long longid = Long.parseLong(id);
             JsonObject getJsonById = new JsonObject().put(DIS_ID, longid);
-            vertx.<JsonObject>executeBlocking(blockinhandler -> {
+            Bootstrap.vertx.<JsonObject>executeBlocking(blockinghandler -> {
 
                 JsonObject result = new JsonObject();
 
@@ -630,14 +645,14 @@ public class DatabaseEngine extends AbstractVerticle {
 
                             result.put(Constant.STATUS, Constant.SUCCESS);
 
-                            blockinhandler.complete(value);
+                            blockinghandler.complete(value);
 
                         } else {
                             result.put(Constant.STATUS, Constant.FAILED);
 
                             result.put(Constant.ERROR, "Already Discovered");
 
-                            blockinhandler.fail(result.encode());
+                            blockinghandler.fail(result.encode());
 
 
                         }
@@ -649,7 +664,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                         result.put(Constant.ERROR, "Wrong Discovery ID");
 
-                        blockinhandler.fail(result.encode());
+                        blockinghandler.fail(result.encode());
 
 
                     }
@@ -660,15 +675,13 @@ public class DatabaseEngine extends AbstractVerticle {
 
                     result.put(Constant.ERROR, exception.getMessage());
 
-                    blockinhandler.fail(result.encode());
+                    blockinghandler.fail(result.encode());
                 }
 
 
-            }).onComplete(handler1 -> {
-
-
-                if (handler1.succeeded()) {
-                    JsonObject value = handler1.result();
+            }).onComplete(asyncResult -> {
+                if (asyncResult.succeeded()) {
+                    JsonObject value = asyncResult.result();
                     eventBus.<JsonObject>request(Constant.EVENTBUS_DISCOVERY, value, discovery -> {
                         LOGGER.debug("Response {} ", discovery.result().body());
                         //data return in json
@@ -682,13 +695,121 @@ public class DatabaseEngine extends AbstractVerticle {
 
                     });
                 } else {
-                    runhandler.fail(-1, handler1.cause().getMessage());
+                    runhandler.fail(-1, asyncResult.cause().getMessage());
 
                 }
             });
 
 
         });
+
+        eventBus.<String>consumer(Constant.EVENTBUS_PROVISION, provisionHandler ->{
+            String id = provisionHandler.body();
+
+            long longid = Long.parseLong(id);
+
+            JsonObject getJsonById = new JsonObject().put(DIS_ID, longid);
+
+            Bootstrap.vertx.<JsonObject>executeBlocking(provisionBlocking ->{
+
+                JsonObject result = new JsonObject();
+
+                try {
+                    if (checkDisId(getJsonById.getLong(DIS_ID))){
+
+                        JsonObject discoveryStatus = checkDiscoveryStatus(getJsonById.getLong(DIS_ID));
+
+                        if (discoveryStatus.getString("discovery").equals("true")){
+
+                            JsonObject value = getRunProvisionQuery(getJsonById.getLong(DIS_ID));
+
+                            insertIntoProDB(value);
+
+                            result.put("Provision", Constant.SUCCESS);
+
+                            String disName = value.getString(Constant.DIS_NAME);
+
+                            long disID = getProProfile(disName);
+
+                            result.put("monitorID", disID);
+
+                            value.put("monitorID", disID);
+
+                            provisionBlocking.complete(value);
+
+                        }
+                        else {
+                            result.put(Constant.STATUS, Constant.FAILED);
+
+                            result.put(Constant.ERROR, "Not Discovered");
+
+                            provisionBlocking.fail(result.encode());
+                        }
+                    }
+                    else {
+                        result.put(Constant.STATUS, Constant.FAILED);
+
+                        result.put(Constant.ERROR, "Wrong Discovery ID");
+
+                        provisionBlocking.fail(result.encode());
+                    }
+
+                }catch (Exception exception){
+                    LOGGER.error(exception.getMessage());
+
+                }
+
+
+
+            }).onComplete(onCompleteHandler ->{
+                JsonObject result = new JsonObject();
+                if (onCompleteHandler.succeeded()) {
+                    JsonObject resultValue = onCompleteHandler.result();
+                    long monitID = resultValue.getLong("monitorID");
+                    String metricType = resultValue.getString(Constant.METRIC_TYPE);
+                    insertIntoUserMetricData(monitID, metricType);
+
+                    Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_POLLING, resultValue, pollingHandler ->{
+                        JsonObject entries = pollingHandler.result().body();
+                        result.put("Polling", Constant.SUCCESS);
+                    });
+
+
+                    provisionHandler.reply(result);
+                }
+                else {
+                    provisionHandler.fail(-1, onCompleteHandler.cause().getMessage());
+                }
+            });
+
+
+
+
+        });
+
+        eventBus.<JsonObject>consumer(Constant.EVENTBUS_GETMETRIC_FOR_POLLING, getData ->{
+            JsonObject getMonitorData = getData.body();
+
+            Bootstrap.vertx.<JsonObject>executeBlocking(metricPolling -> {
+                Long id = getMonitorData.getLong("monitorID");
+                String metricType = getMonitorData.getString(Constant.METRIC_TYPE);
+                JsonObject result = getMonitorQuery(id, metricType);
+                metricPolling.complete(result);
+            }).onComplete(handler ->{
+                if (handler.succeeded()){
+                    JsonObject resultValue = handler.result();
+                    getData.reply(resultValue);
+                }
+                else {
+                    getData.fail(-1, handler.cause().getMessage());
+                }
+            });
+
+
+
+
+        });
+
 
         //Discovery
         eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECKIP, checkip -> {
@@ -770,6 +891,46 @@ public class DatabaseEngine extends AbstractVerticle {
     }
 
 
+
+
+    public void insertIntoUserMetricData(long id , String metricType){
+
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+            String getmetric = "select  p.id, p.metricType, d.counter, d.scheduleTime from provisionTable as p Natural join defaultmetric as d where p.id='" + id + "' and p.metricType='" + metricType + "'" ;
+            ResultSet resultSet = statement.executeQuery(getmetric);
+            while (resultSet.next()){
+                JsonObject result = new JsonObject();
+                Long monitorID = resultSet.getLong("id");
+                String metricdata = resultSet.getString("metricType");
+                String counter = resultSet.getString("counter");
+                Long scheduleTime = resultSet.getLong("scheduleTime");
+
+                result.put("monitorId" , monitorID);
+                result.put("metricType", metricdata);
+                result.put("counter", counter);
+                result.put("time", scheduleTime);
+
+
+                PreparedStatement preparedStatement;
+
+
+                String insertMonitorMetric = "INSERT INTO DiscoveryTemp.monitorMetricTable(monitorID,metricType,metricGroup,Time)"
+                        + "VALUES(?,?,?,?)";
+                preparedStatement = connection.prepareStatement(insertMonitorMetric);
+
+                preparedStatement.setLong(1, result.getLong("monitorId"));
+                preparedStatement.setString(2, result.getString("metricType"));
+                preparedStatement.setString(3, result.getString("counter"));
+                preparedStatement.setString(4, result.getString("time"));
+
+                preparedStatement.execute();
+            }
+        }
+        catch (SQLException exception) {
+                LOGGER.error(exception.getMessage());
+        }
+    }
     public JsonObject checkDiscoveryStatus(long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
@@ -793,6 +954,87 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
+    public JsonObject getMonitorQuery(long id , String metricType) {
+        JsonObject arrayResult = new JsonObject();
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+            String getById = "select * from provisionTable as p Natural join defaultmetric as d where p.id='" + id + "' and p.metricType='" + metricType + "'" ;;
+            ResultSet resultSet = statement.executeQuery(getById);
+            while (resultSet.next()) {
+                JsonObject result = new JsonObject();
+                Long monitorID = resultSet.getLong("id");
+                String metricdata = resultSet.getString("metricType");
+                String username = resultSet.getString("username");
+                String password = resultSet.getString("password");
+                String community = resultSet.getString("community");
+                String version = resultSet.getString("version");
+                String ip = resultSet.getString("ipAddress");
+                int port = resultSet.getInt("port");
+                String counter = resultSet.getString("counter");
+                Long scheduleTime = resultSet.getLong("scheduleTime");
+                String monitorIDmetricname = monitorID + resultSet.getString("counter");
+
+                result.put("monitorId" , monitorID);
+                result.put("metricType", metricdata);
+                result.put(Constant.USER, username);
+                result.put(Constant.PASSWORD, password);
+                result.put(Constant.COMMUNITY, community);
+                result.put(Constant.VERSION, version);
+                result.put(Constant.IP_ADDRESS, ip);
+                result.put(Constant.PORT, port);
+                result.put("counter", counter);
+                result.put("time", scheduleTime);
+               // result.put("idAndGroup", monitorIDmetricname);
+
+
+                arrayResult.put(monitorIDmetricname,result);
+
+            }
+
+
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage());
+        }
+        return arrayResult;
+
+    }
+    public JsonObject getRunProvisionQuery(long id) {
+        JsonObject result = new JsonObject();
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+            //select * from discoveryTable as d join credentialsTable as a on d.credProfile = a.id where d.id = 90007 ;
+            String getById = "select * from DiscoveryTemp.discoveryTable as d join DiscoveryTemp.credentialsTable as c on d.credProfile = c.id where d.id='" + id + "'";
+            ResultSet resultSet = statement.executeQuery(getById);
+            if (resultSet.next()) {
+
+                String disName = resultSet.getString("disName");
+                String username = resultSet.getString("username");
+                String password = resultSet.getString("password");
+                String community = resultSet.getString("community");
+                String version = resultSet.getString("version");
+                String ip = resultSet.getString("ipAddress");
+                String type = resultSet.getString("metricType");
+                int port = resultSet.getInt("port");
+
+
+                result.put(DIS_ID, id);
+                result.put(Constant.USER, username);
+                result.put(Constant.PASSWORD, password);
+                result.put(Constant.COMMUNITY, community);
+                result.put(Constant.VERSION, version);
+                result.put(Constant.IP_ADDRESS, ip);
+                result.put(Constant.METRIC_TYPE, type);
+                result.put(Constant.PORT, port);
+                result.put(Constant.DIS_NAME, disName);
+            }
+
+
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage());
+        }
+        return result;
+
+    }
     public JsonObject getRundiscoveryQuery(long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
@@ -1076,6 +1318,21 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
+    public Long getProProfile(String name) {
+        long result = 0;
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+            String getID = "select id from DiscoveryTemp.provisionTable where monitorName='" + name + "'";
+            ResultSet resultSet = statement.executeQuery(getID);
+            if (resultSet.next()) {
+                result = Long.parseLong(resultSet.getString(1));
+            }
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage());
+        }
+        return result;
+    }
+
     public Boolean checkCredId(long id) {
         boolean result = false;
         try (Connection connection = getConnection()) {
@@ -1196,6 +1453,37 @@ public class DatabaseEngine extends AbstractVerticle {
             discoveryStmt.setString(5, jsonObject.getString("version"));
 
             discoveryStmt.setString(6, jsonObject.getString("cred.name"));
+
+            discoveryStmt.execute();
+        } catch (SQLException exception) {
+            LOGGER.error(exception.getMessage());
+        }
+    }
+
+    public void insertIntoProDB(JsonObject jsonObject) {
+        try (Connection connection = getConnection()) {
+
+            PreparedStatement discoveryStmt;
+            String insertUserSql = "INSERT INTO DiscoveryTemp.provisionTable(username,password,community,version,port,ipAddress,metricType,monitorName)"
+                    + "VALUES(?,?,?,?,?,?,?,?)";
+            discoveryStmt = connection.prepareStatement(insertUserSql);
+
+
+            discoveryStmt.setString(1, jsonObject.getString("user"));
+
+            discoveryStmt.setString(2, jsonObject.getString("password"));
+
+            discoveryStmt.setString(3, jsonObject.getString("community"));
+
+            discoveryStmt.setString(4, jsonObject.getString("version"));
+
+            discoveryStmt.setInt(5, jsonObject.getInteger("port"));
+
+            discoveryStmt.setString(6, jsonObject.getString("ip.address"));
+
+            discoveryStmt.setString(7, jsonObject.getString("metric.type"));
+
+            discoveryStmt.setString(8, jsonObject.getString("dis.name"));
 
             discoveryStmt.execute();
         } catch (SQLException exception) {

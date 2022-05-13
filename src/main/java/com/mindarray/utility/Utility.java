@@ -122,7 +122,7 @@ public class Utility {
 
 
 
-    public JsonObject discovery(JsonObject pluginJson) {
+    public JsonObject spawning(JsonObject pluginJson) {
         JsonObject result = new JsonObject();
         try {
             List<String> commands = new ArrayList<>();
