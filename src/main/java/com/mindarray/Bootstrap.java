@@ -9,9 +9,6 @@ import org.slf4j.LoggerFactory;
 public class Bootstrap {
 
     public final static Vertx vertx = Vertx.vertx();
-
-
-
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryEngine.class);
     public static void main(String[] args) {
 
@@ -27,7 +24,7 @@ public class Bootstrap {
 
                     if (handler.succeeded()) {
 
-                        LOGGER.info("ALL VERTICLES DEPLOYED");
+                        LOGGER.debug("ALL VERTICLES DEPLOYED");
 
                     } else {
                         LOGGER.error("ERROR IN DEPLOYING");
@@ -47,6 +44,7 @@ public class Bootstrap {
                 promise.complete();
 
             } else {
+                System.out.println(handler.cause());
 
                 promise.fail(handler.cause());
 

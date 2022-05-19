@@ -23,44 +23,19 @@ public class APIServer extends AbstractVerticle {
 
         router.route().handler(BodyHandler.create());
 
-      /*  router.post(Constant.DISCOVERY).method(HttpMethod.POST).handler(routingContext -> {
-
-            try{
-            JsonObject requestBody = routingContext.getBodyAsJson();
-
-            if (requestBody != null) {
-
-                vertx.eventBus().request(Constant.EVENTBUS_DISCOVERY, requestBody, req -> {
-
-                    if (req.succeeded()) {
-
-                        LOGGER.debug("Response {} ", req.result().body());
-
-                        routingContext.response().setStatusCode(HttpResponseStatus.OK.code()).putHeader("content-type", Constant.CONTENT_TYPE).end(req.result().body().toString());
-
-                    } else {
-
-                        routingContext.response().setStatusCode(HttpResponseStatus.NOT_FOUND.code()).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, "DATA NOT FOUND, Please try again." ).encode());
-
-                    }
-
-                });
-            }
-
-        }catch (Exception exception){
-                routingContext.response().setStatusCode(400).putHeader("content-type", Constant.CONTENT_TYPE).end(new JsonObject().put(Constant.STATUS, "Invalid Json Format").encode());
-            }
-
-        });*/
-
-
         var discoveryRoute = Router.router(vertx);
 
         var credentialRoute = Router.router(vertx);
 
+        var monitorRoute = Router.router(vertx);
+
         router.mountSubRouter("/api/", discoveryRoute);
 
         router.mountSubRouter("/api/", credentialRoute);
+
+        router.mountSubRouter("/api/", monitorRoute);
+
+        monitorRoute.route().handler(BodyHandler.create());
 
         credentialRoute.route().handler(BodyHandler.create());
 

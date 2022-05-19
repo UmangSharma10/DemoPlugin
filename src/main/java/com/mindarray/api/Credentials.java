@@ -13,7 +13,7 @@ import java.util.HashMap;
 
 public class Credentials  {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(APIServer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Credentials.class);
 
     public void init(Router discoveryRoute) {
 

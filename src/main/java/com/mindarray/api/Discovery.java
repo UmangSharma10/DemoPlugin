@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 
 public class Discovery {
-    private static final Logger LOGGER = LoggerFactory.getLogger(APIServer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Discovery.class);
 
     public void init(Router discoveryRoute) {
 

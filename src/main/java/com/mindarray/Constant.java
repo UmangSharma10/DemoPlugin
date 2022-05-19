@@ -9,19 +9,17 @@ public class Constant {
 
     public static String EVENTBUS_POLLING = "polling";
 
-    public static String EVENTBUS_GETMETRIC_FOR_POLLING = "get.metric.polling";
+    public static final String EVENTBUS_GETMETRIC_FOR_POLLING = "get.metric.polling";
 
-    public static String EVENTBUS_RUN_DISCOVERY = "run.discovery";
-    public static String EVENTBUS_GETDISCOVERY = "get.discovery";
-    public static String EVENTBUS_DISCOVERY = "discovery";
+    public static final String EVENTBUS_RUN_DISCOVERY = "run.discovery";
+    public static final String EVENTBUS_GETDISCOVERY = "get.discovery";
+    public static final String EVENTBUS_DISCOVERY = "discovery";
 
-    public static String EVENTBUS_INSERT_INTO_PROVISION = "insert.into.provision";
+    public static final String EVENTBUS_UPDATE_DIS = "update.discovery";
 
-    public static String EVENTBUS_UPDATE_DIS = "update.discovery";
+    public static final  String EVENTBUS_UPDATE_CRED = "update.cred";
 
-    public static String EVENTBUS_UPDATE_CRED = "update.cred";
-
-    public static String EVENTBUS_GETALLDIS = "get.all.discovery";
+    public static final  String EVENTBUS_GETALLDIS = "get.all.discovery";
 
     public static String EVENTBUS_GETALLCRED = "get.all.cred";
 
@@ -82,23 +80,25 @@ public class Constant {
 
     public static String COMMUNITY = "community";
 
-    public static String VERSION = "version";
+    public static final String IPANDGROUP = "idAndGroup";
 
-    public static String VERSION1 = "v1";
+    public static final String VERSION = "version";
 
-    public static String VERSION2C = "v2c";
+    public static final String VERSION1 = "v1";
 
-   public static String ERROR = "error";
+    public static final String VERSION2C = "v2c";
 
-   public static String STATUS = "status";
+   public static final String ERROR = "error";
 
-   public static String SUCCESS = "success";
+   public static final String STATUS = "status";
 
-   public static String FAILED = "failed";
+   public static final String SUCCESS = "success";
 
-   public static String UP = "up";
+   public static final String FAILED = "failed";
 
-   public static String DOWN = "down";
+   public static final String UP = "up";
+
+   public static final String DOWN = "down";
 
 
 
