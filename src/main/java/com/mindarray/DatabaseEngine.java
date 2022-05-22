@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 
-import static com.mindarray.Constant.DIS_ID;
+import static com.mindarray.Constant.*;
 
 public class DatabaseEngine extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseEngine.class);
@@ -19,873 +19,813 @@ public class DatabaseEngine extends AbstractVerticle {
     @Override
     public void start(Promise<Void> startPromise) {
 
-
         LOGGER.debug("DATABASE ENGINE DEPLOYED");
 
         EventBus eventBus = Bootstrap.vertx.eventBus();
 
-        //subrouteCred
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECK_CREDNAME, apiCred -> {
+        JsonObject result1 = new JsonObject();
 
-            JsonObject result = new JsonObject();
+        eventBus.<JsonObject>localConsumer(EVENTBUS_DATABASE, handler ->{
+           switch (handler.body().getString(METHOD)){
+               case EVENTBUS_CHECK_CREDNAME:
 
-            JsonObject userCredData = apiCred.body();
+                   JsonObject userCredData = handler.body();
 
-            Bootstrap.vertx.executeBlocking(event -> {
-                try {
+                   Bootstrap.vertx.executeBlocking(event -> {
+                       try {
+                            String tableName  = "credentialsTable";
+                            String columnName = "cred_name";
+                           if (Boolean.FALSE.equals(checkName(tableName, columnName, userCredData.getString(Constant.CRED_NAME)))) {
 
-                    if (!checkCredName(userCredData.getString(Constant.CRED_NAME))) {
+                               result1.put(Constant.STATUS, Constant.SUCCESS);
 
-                        result.put(Constant.STATUS, Constant.SUCCESS);
+                               event.complete(result1);
 
-                        event.complete(result);
+                           } else {
 
-                    } else {
+                               result1.put(Constant.STATUS, Constant.FAILED);
 
-                        result.put(Constant.STATUS, Constant.FAILED);
+                               result1.put(Constant.ERROR, "CRED.NAME NOT UNIQUE");
 
-                        result.put(Constant.ERROR, "CRED.NAME NOT UNIQUE");
+                               event.fail(result1.encode());
+                           }
 
-                        event.complete(result);
-                    }
+                       } catch (Exception exception) {
 
-                } catch (Exception exception) {
+                           LOGGER.error(exception.getMessage());
 
-                    LOGGER.error(exception.getMessage());
+                       }
+                   }).onComplete(res -> {
 
-                }
-            }).onComplete(res -> {
+                       if (res.succeeded()) {
 
-                if (res.succeeded()) {
+                           handler.reply(result1);
 
-                    apiCred.reply(result);
+                       } else {
+                           handler.fail(-1, res.cause().getMessage());
+                       }
 
-                } else {
-                    apiCred.fail(-1, res.cause().getMessage());
-                }
+                   });
+                   break;
 
-            });
+               case EVENTBUS_INSERTCRED:
+                   JsonObject jsonDbData = handler.body();
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       try {
+
+                           if (Boolean.FALSE.equals(checkName("credentialsTable", "cred_name", jsonDbData.getString(Constant.CRED_NAME)))) {
+
+                               insertIntoCredDB(jsonDbData);
+
+                               LOGGER.info("Data Inserted");
+
+                               result1.put(Constant.DB_STATUS_INSERTION, Constant.SUCCESS);
+
+                               String credName = jsonDbData.getString(Constant.CRED_NAME);
+
+                               long credID = getCredProfile(credName);
+
+                               result1.put(Constant.CRED_PROFILE, credID);
+
+                               blockinhandler.complete(result1);
+
+                           } else {
+
+                               result1.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "Duplicate cred.name");
+
+                               blockinhandler.fail(result1.encode());
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result1.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
+
+                           result1.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result1.encode());
+                       }
+
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+
+                           handler.reply(handler1.result());
+
+                       } else {
+
+                           handler.fail(-1, handler1.cause().getMessage());
+
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_CHECKID_CRED:
+                   JsonObject jsondbData  = handler.body();
+
+                   var id = jsondbData.getString(CRED_ID);
+
+                   long longId = Long.parseLong(id);
+
+                   JsonObject checkcredData = new JsonObject().put(Constant.CRED_ID, longId);
+
+                   Bootstrap.vertx.executeBlocking(event -> {
+
+                       try {
+                           String tablename = "credentialsTable";
+                           String columnName = "credentialsTable_id";
+
+                           if (Boolean.TRUE.equals(checkId(tablename, columnName, checkcredData.getLong(Constant.CRED_ID)))) {
+
+                               result1.put(Constant.STATUS, Constant.SUCCESS);
+
+                               event.complete(result1);
+
+                           } else {
+                               result1.put(Constant.STATUS, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "WRONG ID");
+
+                               event.fail(result1.encode());
+                           }
+
+                       } catch (Exception exception) {
+                           LOGGER.error(exception.getMessage());
+
+                       }
+                   }).onComplete(res -> {
+                       if (res.succeeded()) {
+                           handler.reply(result1);
+                       } else {
+                           handler.fail(-1, res.cause().getMessage());
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_DELETECRED:
+
+                   JsonObject jsondeleteData  = handler.body();
+
+                   var deleteId = jsondeleteData.getString(CRED_ID);
+
+                   long longid = Long.parseLong(deleteId);
+
+                   JsonObject deleteObject = new JsonObject().put(Constant.CRED_ID, longid);
+
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       JsonObject result = new JsonObject();
+
+                       try {
+                           String tableName = "credentialsTable";
+                           String columnName= "credentialsTable_id";
+
+                           if (Boolean.TRUE.equals(checkId(tableName, columnName,deleteObject.getLong(Constant.CRED_ID)))) {
+
+                               if (Boolean.FALSE.equals(checkId("discoveryTable","cred_profile", deleteObject.getLong(Constant.CRED_ID)))) {
+
+                                   boolean value = delete(tableName, columnName, deleteObject.getLong(Constant.CRED_ID));
+
+                                   if (value){
+
+                                       result.put(Constant.DB_STATUS_DELETION, Constant.SUCCESS);
+
+                                       blockinhandler.complete(result);
+                                   } else {
+
+                                       result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
+
+                                       blockinhandler.fail(result.encode());
+                                   }
+                               } else {
+                                   result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
+
+                                   result.put(Constant.ERROR, "Already Used in Discovery");
+
+                                   blockinhandler.fail(result.encode());
+
+                               }
+
+
+                           } else {
+
+                               result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
+
+                               result.put(Constant.ERROR, "Wrong ID");
+
+                               blockinhandler.fail(result.encode());
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
+
+                           result.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result.encode());
+                       }
+
+
+                   }).onComplete(handler1 -> {
+
+                       if (handler1.succeeded()) {
+                           handler.reply(handler1.result());
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+
+                   });
+
+                   break;
+
+               case EVENTBUS_UPDATE_CRED:
+                   JsonObject updataData = handler.body();
+
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       JsonObject result = new JsonObject();
+
+                       try {
+
+                           if (Boolean.TRUE.equals(checkId("credentialsTable", "credentialsTable_id", updataData.getLong(Constant.CRED_ID)))) {
+
+                               update("credentialsTable", updataData);
+
+                               result.put(Constant.DB_STATUS_UPDATE, Constant.SUCCESS);
+
+                               blockinhandler.complete(result);
+
+                           } else {
+
+                               result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
+
+                               result.put(Constant.ERROR, "CRED ID DOESNT EXIST IN CRED DB");
+
+                               blockinhandler.fail(result.encode());
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
+
+                           result.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result.encode());
+
+                       }
+
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+                           handler.reply(handler1.result());
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_GETCREDBYID:
+                   JsonObject getData = handler.body();
+                   String getId = getData.getString(CRED_ID);
+                   long longgetid = Long.parseLong(getId);
+                   JsonObject getJsonById = new JsonObject().put(Constant.CRED_ID, longgetid);
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       try {
+                           String tableName = "credentialsTable";
+                           String columnName= "credentialsTable_id";
+                           if (Boolean.TRUE.equals(checkId(tableName, columnName , getJsonById.getLong(Constant.CRED_ID)))) {
+
+                               JsonObject value = getByID(tableName , columnName, getJsonById.getLong(Constant.CRED_ID));
+
+                               result1.put(Constant.STATUS, Constant.SUCCESS);
+
+                               result1.put(RESULT, value);
+
+                               blockinhandler.complete(result1);
+
+                           } else {
+
+                               result1.put(Constant.STATUS, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "Wrong Credential ID");
+
+                               blockinhandler.fail(result1.encode());
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result1.put(Constant.STATUS, Constant.FAILED);
+
+                           result1.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result1.encode());
+                       }
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+                           handler.reply(handler1.result());
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_GETALLCRED:
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       try {
+
+                           JsonArray value = getAllCred();
+
+                           result1.put(Constant.STATUS, Constant.SUCCESS);
+
+                           result1.put(RESULT, value);
+
+                           blockinhandler.complete(result1);
+
+
+                       } catch (Exception exception) {
+
+                           result1.put(Constant.STATUS, Constant.FAILED);
+
+                           result1.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result1.encode());
+                       }
+
+                       blockinhandler.complete(result1);
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+                           handler.reply(handler1.result());
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+                   });
+
+                   break;
+
+               case EVENTBUS_CHECK_DISNAME:
+
+                   JsonObject userDisData = handler.body();
+
+                   Bootstrap.vertx.executeBlocking(event -> {
+                       try {
+                           if (Boolean.FALSE.equals(checkName("discoveryTable", "dis_name", userDisData.getString(Constant.DIS_NAME)))) {
+                               result1.put(Constant.STATUS, Constant.SUCCESS);
+
+                               event.complete(result1);
+                           } else {
+
+                               result1.put(Constant.STATUS, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "DIS.NAME NOT UNIQUE");
+
+                               event.fail(result1.encode());
+                           }
+
+                       } catch (Exception exception) {
+                           LOGGER.error(exception.getMessage());
+
+                       }
+                   }).onComplete(res -> {
+                       if (res.succeeded()) {
+                           handler.reply(res.result());
+                       } else {
+                           handler.fail(-1, res.cause().getMessage());
+                       }
+
+                   });
+                   break;
+
+               case EVENTBUS_INSERTDISCOVERY:
+
+                   JsonObject insertDisData = handler.body();
+
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       try {
+
+                           if (Boolean.FALSE.equals(checkName("discoveryTable", "dis_name", insertDisData.getString(Constant.DIS_NAME)))) {
+
+                               insertIntoDisDB(insertDisData);
+
+                               result1.put(Constant.DB_STATUS_INSERTION, Constant.SUCCESS);
+
+                               String disName = insertDisData.getString(Constant.DIS_NAME);
+
+                               long disID = getDisProfile(disName);
+
+                               result1.put(DIS_ID, disID);
+
+                               blockinhandler.complete(result1);
+
+                           } else {
+
+                               result1.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "Duplicate dis.name");
+
+                               blockinhandler.fail(result1.encode());
+                           }
+
+                       } catch (Exception exception) {
+
+                           result1.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
+
+                           result1.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result1.encode());
+                       }
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+
+                           handler.reply(handler1.result());
+
+                       } else {
+
+                           handler.fail(-1, handler1.cause().getMessage());
+
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_CHECKID_DISCOVERY:
+
+                   var disId = handler.body().getString(DIS_ID);
+
+                   long disidL = Long.parseLong(disId);
+
+                   JsonObject checkDisData = new JsonObject().put(DIS_ID, disidL);
+
+                   Bootstrap.vertx.executeBlocking(event -> {
+
+                       try {
+
+                           if (Boolean.TRUE.equals(checkId("discoveryTable", "discoveryTable_id", checkDisData.getLong(DIS_ID)))) {
+
+                               result1.put(Constant.STATUS, Constant.SUCCESS);
+
+                               event.complete(result1);
+
+                           } else {
+                               result1.put(Constant.STATUS, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "WRONG ID");
+
+                               event.fail(result1.encode());
+                           }
+
+                       } catch (Exception exception) {
+                           LOGGER.error(exception.getMessage());
+
+                       }
+                   }).onComplete(res -> {
+                       if (res.succeeded()) {
+                           handler.reply(result1);
+                       } else {
+                           handler.fail(-1, res.cause().getMessage());
+                       }
+                   });
+
+                   break;
+
+               case EVENTBUS_DELETEDIS:
+                   var delid = handler.body().getString(DIS_ID);
+
+                   long delidL = Long.parseLong(delid);
+
+                   JsonObject delDisData = new JsonObject().put(DIS_ID, delidL);
+
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       JsonObject result = new JsonObject();
+
+                       try {
+
+                           if (Boolean.TRUE.equals(checkId("discoveryTable", "discoveryTable_id", delDisData.getLong(DIS_ID)))) {
+
+                               boolean value = delete("discoveryTable", "discoveryTable_id", delDisData.getLong(DIS_ID));
+
+                               if (value) {
+                                   result.put(Constant.DB_STATUS_DELETION, Constant.SUCCESS);
+                                   blockinhandler.complete(result);
+                               } else {
+                                   result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
+                                   blockinhandler.fail(result.encode());
+                               }
+
+
+                           } else {
+
+                               result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
+
+                               result.put(Constant.ERROR, "Wrong ID");
+
+                               blockinhandler.fail(result.encode());
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
+
+                           result.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result.encode());
+                       }
+
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+                           handler.reply(handler1.result());
+
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_UPDATE_DIS:
+                   JsonObject updateDisData = handler.body();
+
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       JsonObject result = new JsonObject();
+
+                       try {
+
+                           if (Boolean.TRUE.equals(checkId("discoveryTable","cred_profile",updateDisData.getLong(Constant.CRED_PROFILE)))) {
+
+                               update("discoveryTable",updateDisData);
+
+                               result.put(Constant.DB_STATUS_UPDATE, Constant.SUCCESS);
+
+                               blockinhandler.complete(result);
+
+                           } else {
+
+                               result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
+
+                               result.put(Constant.ERROR, "CRED PROFILE DOESNT EXIST IN CRED DB");
+
+                               blockinhandler.fail(result.encode());
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
+
+                           result.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result.encode());
+                       }
+
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+
+                           handler.reply(handler1.result());
+
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_GETDISCOVERY:
+                   String getDisid = handler.body().getString(DIS_ID);
+
+                   long getdisLong = Long.parseLong(getDisid);
+
+                   JsonObject getDisById = new JsonObject().put(DIS_ID, getdisLong);
+
+                   vertx.executeBlocking(blockinhandler -> {
+
+                       try {
+
+                           if (Boolean.TRUE.equals(checkId("discoveryTable", "discoveryTable_id", getDisById.getLong(DIS_ID)))) {
+
+                               JsonObject value = getByDisID(getDisById.getLong(DIS_ID));
+
+                               result1.put(Constant.STATUS, Constant.SUCCESS);
+
+                               result1.put("Result", value);
+
+                               blockinhandler.complete(result1);
+
+                           } else {
+
+                               result1.put(Constant.STATUS, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "Wrong Discovery ID");
+
+                               blockinhandler.fail(result1.encode());
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result1.put(Constant.STATUS, Constant.FAILED);
+
+                           result1.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result1.encode());
+                       }
+
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+                           handler.reply(handler1.result());
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+                   });
+                   break;
+
+               case EVENTBUS_GETALLDIS:
+                   Bootstrap.vertx.executeBlocking(blockinhandler -> {
+
+                       JsonObject result = new JsonObject();
+
+                       try {
+
+                           JsonArray value = getAllDis();
+
+                           result.put(Constant.STATUS, Constant.SUCCESS);
+
+                           result.put("Result", value);
+
+                           blockinhandler.complete(result);
+
+
+                       } catch (Exception exception) {
+
+                           result.put(Constant.STATUS, Constant.FAILED);
+
+                           result.put(Constant.ERROR, exception.getMessage());
+
+                           blockinhandler.fail(result.encode());
+                       }
+
+
+                   }).onComplete(handler1 -> {
+                       if (handler1.succeeded()) {
+                           handler.reply(handler1.result());
+                       } else {
+                           handler.fail(-1, handler1.cause().getMessage());
+                       }
+                   });
+
+                   break;
+
+               case EVENTBUS_RUN_DISCOVERY:
+                   String runId = handler.body().getString(DIS_ID);
+
+                   long runIdL = Long.parseLong(runId);
+
+                   JsonObject runDataById = new JsonObject().put(DIS_ID, runIdL);
+
+                   Bootstrap.vertx.<JsonObject>executeBlocking(blockinghandler -> {
+
+                       try {
+
+                           if (Boolean.TRUE.equals(checkId("discoveryTable","discoveryTable_id",runDataById.getLong(DIS_ID)))) {
+
+                               JsonObject discoveryStatus = checkDiscoveryStatus(runDataById.getLong(DIS_ID));
+
+                               if (discoveryStatus.getString("discovery").equals("false")) {
+
+                                   JsonObject value = getRundiscoveryQuery(runDataById.getLong(DIS_ID));
+
+                                   value.put(CATEGORY, "discovery");
+                                   LOGGER.debug(value.encode());
+
+                                   result1.put(Constant.STATUS, Constant.SUCCESS);
+
+                                   blockinghandler.complete(value);
+
+                               } else {
+                                   result1.put(Constant.STATUS, Constant.FAILED);
+
+                                   result1.put(Constant.ERROR, "Already Discovered");
+
+                                   blockinghandler.fail(result1.encode());
+
+
+                               }
+
+
+                           } else {
+
+                               result1.put(Constant.STATUS, Constant.FAILED);
+
+                               result1.put(Constant.ERROR, "Wrong Discovery ID");
+
+                               blockinghandler.fail(result1.encode());
+
+
+                           }
+
+                       } catch (Exception exception) {
+
+                           result1.put(Constant.STATUS, Constant.FAILED);
+
+                           result1.put(Constant.ERROR, exception.getMessage());
+
+                           blockinghandler.fail(result1.encode());
+                       }
+
+
+                   }).onComplete(asyncResult -> {
+                       if (asyncResult.succeeded()) {
+                           JsonObject value = asyncResult.result();
+                           eventBus.<JsonObject>request(Constant.EVENTBUS_DISCOVERY, value, discovery -> {
+                               LOGGER.debug("Response {} ", discovery.result().body());
+                               //data return in json
+                               JsonObject result = discovery.result().body();
+
+                               if (!result.containsKey(Constant.ERROR)) {
+                                   handler.reply(result);
+                               } else {
+                                   handler.fail(-1, asyncResult.cause().getMessage());
+                               }
+
+                           });
+                       } else {
+                           handler.fail(-1, asyncResult.cause().getMessage());
+
+                       }
+                   });
+
+                   break;
+
+           }
         });
 
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_INSERTCRED, handler -> {
 
-            JsonObject jsonDbData = handler.body();
 
-            vertx.executeBlocking(blockinhandler -> {
+        eventBus.<JsonObject>consumer(Constant.EVENTBUS_PROVISION, provisionHandler ->
+        {
+            String discoveryid = provisionHandler.body().getString(DIS_ID);
 
-                JsonObject result = new JsonObject();
+            long disIDL = Long.parseLong(discoveryid);
 
-                try {
-
-                    if (!checkCredName(jsonDbData.getString(Constant.CRED_NAME))) {
-
-                        insertIntoCredDB(jsonDbData);
-
-                        result.put(Constant.DB_STATUS_INSERTION, Constant.SUCCESS);
-
-                        String credName = jsonDbData.getString(Constant.CRED_NAME);
-
-                        long credID = getCredProfile(credName);
-
-                        result.put(Constant.CRED_PROFILE, credID);
-
-                        blockinhandler.complete(result);
-
-                    } else {
-
-                        result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "Duplicate cred.name");
-
-                        blockinhandler.fail(result.encode());
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinhandler.fail(result.encode());
-                }
-
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-
-                    handler.reply(handler1.result());
-
-                } else {
-
-                    handler.fail(-1, handler1.cause().getMessage());
-
-                }
-
-
-            });
-
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_DELETECRED, handler -> {
-
-            var id = handler.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject jsonDbData = new JsonObject().put(Constant.CRED_ID, longid);
-
-            vertx.executeBlocking(blockinhandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (checkCredId(jsonDbData.getLong(Constant.CRED_ID))) {
-
-                        if (checkCredProfile(jsonDbData.getLong(Constant.CRED_ID))) {
-                            boolean value = deleteCredDb(jsonDbData.getLong(Constant.CRED_ID));
-
-                            if (value) {
-
-                                result.put(Constant.DB_STATUS_DELETION, Constant.SUCCESS);
-
-                                blockinhandler.complete(result);
-                            } else {
-
-                                result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
-
-                                blockinhandler.fail(result.encode());
-                            }
-                        } else {
-                            result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
-
-                            result.put(Constant.ERROR, "Already Used in Discovery");
-
-                            blockinhandler.fail(result.encode());
-
-                        }
-
-
-                    } else {
-
-                        result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "Wrong ID");
-
-                        blockinhandler.fail(result.encode());
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinhandler.fail(result.encode());
-                }
-
-
-            }).onComplete(handler1 -> {
-
-                if (handler1.succeeded()) {
-                    handler.reply(handler1.result());
-                } else {
-                    handler.fail(-1, handler1.cause().getMessage());
-                }
-
-            });
-
-        });
-
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECKID_JSON, apiCredId -> {
-            JsonObject result = new JsonObject();
-
-            JsonObject userCredData = apiCredId.body();
-
-            Bootstrap.vertx.executeBlocking(event -> {
-
-                try {
-
-                    if (checkCredId(userCredData.getLong(Constant.CRED_ID))) {
-
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        event.complete(result);
-
-                    } else {
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "WRONG ID");
-
-                        event.complete(result);
-                    }
-
-                } catch (Exception exception) {
-                    LOGGER.error(exception.getMessage());
-
-                }
-            }).onComplete(res -> {
-                if (res.succeeded()) {
-                    apiCredId.reply(result);
-                } else {
-                    apiCredId.fail(-1, res.cause().getMessage());
-                }
-            });
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_CHECKID_CRED, apiCredId -> {
-            JsonObject result = new JsonObject();
-
-            var id = apiCredId.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject userCredData = new JsonObject().put(Constant.CRED_ID, longid);
-
-            Bootstrap.vertx.executeBlocking(event -> {
-
-                try {
-
-                    if (checkCredId(userCredData.getLong(Constant.CRED_ID))) {
-
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        event.complete(result);
-
-                    } else {
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "WRONG ID");
-
-                        event.complete(result);
-                    }
-
-                } catch (Exception exception) {
-                    LOGGER.error(exception.getMessage());
-
-                }
-            }).onComplete(res -> {
-                if (res.succeeded()) {
-                    apiCredId.reply(result);
-                } else {
-                    apiCredId.fail(-1, res.cause().getMessage());
-                }
-            });
-        });
-
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_UPDATE_CRED, handler -> {
-
-            JsonObject jsonDbData = handler.body();
-
-            vertx.executeBlocking(blockinhandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (checkCredId(jsonDbData.getLong(Constant.CRED_ID))) {
-
-                        updateIntoCredDB(jsonDbData);
-
-                        result.put(Constant.DB_STATUS_UPDATE, Constant.SUCCESS);
-
-                    } else {
-
-                        result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "CRED ID DOESNT EXIST IN CRED DB");
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-                }
-
-                blockinhandler.complete(result);
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-                    handler.reply(handler1.result());
-                } else {
-                    handler.fail(-1, handler1.cause().getMessage());
-                }
-            });
-
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_GETCREDBYID, getIdhandler -> {
-            String id = getIdhandler.body();
-            long longid = Long.parseLong(id);
-            JsonObject getJsonById = new JsonObject().put(Constant.CRED_ID, longid);
-            vertx.executeBlocking(blockinhandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (checkCredId(getJsonById.getLong(Constant.CRED_ID))) {
-
-                        JsonObject value = getByCredID(getJsonById.getLong(Constant.CRED_ID));
-
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        result.put("Result", value);
-
-                        blockinhandler.complete(result);
-
-                    } else {
-
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "Wrong Credential ID");
-
-                        blockinhandler.fail(result.encode());
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.STATUS, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinhandler.fail(result.encode());
-                }
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-                    getIdhandler.reply(handler1.result());
-                } else {
-                    getIdhandler.fail(-1, handler1.cause().getMessage());
-                }
-            });
-
-
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_GETALLCRED, getIdhandler -> vertx.executeBlocking(blockinhandler -> {
-
-            JsonObject result = new JsonObject();
-
-            try {
-
-                JsonArray value = getAllCred();
-
-                result.put(Constant.STATUS, Constant.SUCCESS);
-
-                result.put("Result", value);
-
-                blockinhandler.complete(result);
-
-
-            } catch (Exception exception) {
-
-                result.put(Constant.STATUS, Constant.FAILED);
-
-                result.put(Constant.ERROR, exception.getMessage());
-
-                blockinhandler.fail(result.encode());
-            }
-
-            blockinhandler.complete(result);
-
-        }).onComplete(handler1 -> {
-            if (handler1.succeeded()) {
-                getIdhandler.reply(handler1.result());
-            } else {
-                getIdhandler.fail(-1, handler1.cause().getMessage());
-            }
-        }));
-
-
-        //subroutediscovery
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECKID_JSON, apiDisId -> {
-            JsonObject result = new JsonObject();
-
-            JsonObject userCredData = apiDisId.body();
-
-            Bootstrap.vertx.executeBlocking(event -> {
-
-                try {
-                    System.out.println("data");
-
-                    if (checkDisId(userCredData.getLong(DIS_ID))) {
-
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        event.complete(result);
-
-                    } else {
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "WRONG ID");
-
-                        event.complete(result);
-                    }
-
-                } catch (Exception exception) {
-                    LOGGER.error(exception.getMessage());
-
-                }
-            }).onComplete(res -> {
-                if (res.succeeded()) {
-                    apiDisId.reply(result);
-                } else {
-                    apiDisId.fail(-1, res.cause().getMessage());
-                }
-            });
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_CHECKID_DISCOVERY, apiDisId -> {
-            JsonObject result = new JsonObject();
-
-            var id = apiDisId.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject userCredData = new JsonObject().put(DIS_ID, longid);
-
-            Bootstrap.vertx.executeBlocking(event -> {
-
-                try {
-
-                    if (checkDisId(userCredData.getLong(DIS_ID))) {
-
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        event.complete(result);
-
-                    } else {
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "WRONG ID");
-
-                        event.complete(result);
-                    }
-
-                } catch (Exception exception) {
-                    LOGGER.error(exception.getMessage());
-
-                }
-            }).onComplete(res -> {
-                if (res.succeeded()) {
-                    apiDisId.reply(result);
-                } else {
-                    apiDisId.fail(-1, res.cause().getMessage());
-                }
-            });
-        });
-
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECK_DISNAME, apiDis -> {
-
-            JsonObject result = new JsonObject();
-
-            JsonObject userCredData = apiDis.body();
-
-            Bootstrap.vertx.executeBlocking(event -> {
-                try {
-                    if (!checkDisName(userCredData.getString(Constant.DIS_NAME))) {
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        event.complete(result);
-                    } else {
-
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "DIS.NAME NOT UNIQUE");
-
-                        event.complete(result);
-                    }
-
-                } catch (Exception exception) {
-                    LOGGER.error(exception.getMessage());
-
-                }
-            }).onComplete(res -> {
-                if (res.succeeded()) {
-                    apiDis.reply(result);
-                } else {
-                    apiDis.fail(-1, res.cause().getMessage());
-                }
-
-            });
-        });
-
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_INSERTDISCOVERY, handler -> {
-
-            JsonObject jsonDbData = handler.body();
-
-            vertx.executeBlocking(blockinhandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (Boolean.FALSE.equals(checkDisName(jsonDbData.getString(Constant.DIS_NAME)))) {
-
-                        insertIntoDisDB(jsonDbData);
-
-                        result.put(Constant.DB_STATUS_INSERTION, Constant.SUCCESS);
-
-                        String disName = jsonDbData.getString(Constant.DIS_NAME);
-
-                        long disID = getDisProfile(disName);
-
-                        result.put(DIS_ID, disID);
-
-                        blockinhandler.complete(result);
-
-                    } else {
-
-                        result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "Duplicate dis.name");
-
-                        blockinhandler.fail(result.encode());
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinhandler.fail(result.encode());
-                }
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-
-                    handler.reply(handler1.result());
-
-                } else {
-
-                    handler.fail(-1, handler1.cause().getMessage());
-
-                }
-            });
-        });
-
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_UPDATE_DIS, handler -> {
-
-            JsonObject jsonDbData = handler.body();
-
-            vertx.executeBlocking(blockinhandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (Boolean.TRUE.equals(checkCredId(jsonDbData.getLong(Constant.CRED_PROFILE)))) {
-
-                        updateIntoDisDB(jsonDbData);
-
-                        result.put(Constant.DB_STATUS_UPDATE, Constant.SUCCESS);
-
-                        blockinhandler.complete(result);
-
-                    } else {
-
-                        result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "CRED PROFILE DOESNT EXIST IN CRED DB");
-
-                        blockinhandler.fail(result.encode());
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinhandler.fail(result.encode());
-                }
-
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-
-                    handler.reply(handler1.result());
-
-                } else {
-                    handler.fail(-1, handler1.cause().getMessage());
-                }
-            });
-
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_DELETEDIS, handler -> {
-
-            var id = handler.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject jsonDbData = new JsonObject().put(DIS_ID, longid);
-
-            vertx.executeBlocking(blockinhandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (checkDisId(jsonDbData.getLong(DIS_ID))) {
-
-                        boolean value = deleteDisDb(jsonDbData.getLong(DIS_ID));
-
-                        if (value) {
-                            result.put(Constant.DB_STATUS_DELETION, Constant.SUCCESS);
-                            blockinhandler.complete(result);
-                        } else {
-                            result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
-                            blockinhandler.fail(result.encode());
-                        }
-
-
-                    } else {
-
-                        result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "Wrong ID");
-
-                        blockinhandler.fail(result.encode());
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.DB_STATUS_DELETION, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinhandler.fail(result.encode());
-                }
-
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-                    handler.reply(handler1.result());
-
-                } else {
-                    handler.fail(-1, handler1.cause().getMessage());
-                }
-            });
-
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_GETDISCOVERY, getIdhandler -> {
-
-            String id = getIdhandler.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject getJsonById = new JsonObject().put(DIS_ID, longid);
-
-            vertx.executeBlocking(blockinhandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (checkDisId(getJsonById.getLong(DIS_ID))) {
-
-                        JsonObject value = getByDisID(getJsonById.getLong(DIS_ID));
-
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        result.put("Result", value);
-
-                        blockinhandler.complete(result);
-
-                    } else {
-
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "Wrong Discovery ID");
-
-                        blockinhandler.fail(result.encode());
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.STATUS, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinhandler.fail(result.encode());
-                }
-
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-                    getIdhandler.reply(handler1.result());
-                } else {
-                    getIdhandler.fail(-1, handler1.cause().getMessage());
-                }
-            });
-
-
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_GETALLDIS, getIdhandler -> Bootstrap.vertx.executeBlocking(blockinhandler -> {
-
-            JsonObject result = new JsonObject();
-
-            try {
-
-                JsonArray value = getAllDis();
-
-                result.put(Constant.STATUS, Constant.SUCCESS);
-
-                result.put("Result", value);
-
-                blockinhandler.complete(result);
-
-
-            } catch (Exception exception) {
-
-                result.put(Constant.STATUS, Constant.FAILED);
-
-                result.put(Constant.ERROR, exception.getMessage());
-
-                blockinhandler.fail(result.encode());
-            }
-
-
-        }).onComplete(handler1 -> {
-            if (handler1.succeeded()) {
-                getIdhandler.reply(handler1.result());
-            } else {
-                getIdhandler.fail(-1, handler1.cause().getMessage());
-            }
-        }));
-
-        eventBus.<String>consumer(Constant.EVENTBUS_RUN_DISCOVERY, runhandler -> {
-
-            String id = runhandler.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject getJsonById = new JsonObject().put(DIS_ID, longid);
-
-            Bootstrap.vertx.<JsonObject>executeBlocking(blockinghandler -> {
-
-                JsonObject result = new JsonObject();
-
-                try {
-
-                    if (checkDisId(getJsonById.getLong(DIS_ID))) {
-
-                        JsonObject discoveryStatus = checkDiscoveryStatus(getJsonById.getLong(DIS_ID));
-
-                        if (discoveryStatus.getString("discovery").equals("false")) {
-
-                            JsonObject value = getRundiscoveryQuery(getJsonById.getLong(DIS_ID));
-
-                            value.put("category", "discovery");
-                            LOGGER.debug(value.encode());
-
-                            result.put(Constant.STATUS, Constant.SUCCESS);
-
-                            blockinghandler.complete(value);
-
-                        } else {
-                            result.put(Constant.STATUS, Constant.FAILED);
-
-                            result.put(Constant.ERROR, "Already Discovered");
-
-                            blockinghandler.fail(result.encode());
-
-
-                        }
-
-
-                    } else {
-
-                        result.put(Constant.STATUS, Constant.FAILED);
-
-                        result.put(Constant.ERROR, "Wrong Discovery ID");
-
-                        blockinghandler.fail(result.encode());
-
-
-                    }
-
-                } catch (Exception exception) {
-
-                    result.put(Constant.STATUS, Constant.FAILED);
-
-                    result.put(Constant.ERROR, exception.getMessage());
-
-                    blockinghandler.fail(result.encode());
-                }
-
-
-            }).onComplete(asyncResult -> {
-                if (asyncResult.succeeded()) {
-                    JsonObject value = asyncResult.result();
-                    eventBus.<JsonObject>request(Constant.EVENTBUS_DISCOVERY, value, discovery -> {
-                        LOGGER.debug("Response {} ", discovery.result().body());
-                        //data return in json
-                        JsonObject result = discovery.result().body();
-
-                        if (!result.containsKey(Constant.ERROR)) {
-                            runhandler.reply(result);
-                        } else {
-                            runhandler.reply(result);
-                        }
-
-                    });
-                } else {
-                    runhandler.fail(-1, asyncResult.cause().getMessage());
-
-                }
-            });
-
-
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_PROVISION, provisionHandler -> {
-            String id = provisionHandler.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject getJsonById = new JsonObject().put(DIS_ID, longid);
+            JsonObject getProById = new JsonObject().put(DIS_ID, disIDL);
 
             Bootstrap.vertx.<JsonObject>executeBlocking(provisionBlocking -> {
 
                 JsonObject result = new JsonObject();
 
                 try {
-                    if (checkDisId(getJsonById.getLong(DIS_ID))) {
+                    if (Boolean.TRUE.equals(checkId("discoveryTable", "discoveryTable_id", getProById.getLong(DIS_ID)))) {
 
-                        JsonObject discoveryStatus = checkDiscoveryStatus(getJsonById.getLong(DIS_ID));
+                        JsonObject discoveryStatus = checkDiscoveryStatus(getProById.getLong(DIS_ID));
 
                         if (discoveryStatus.getString("discovery").equals("true")) {
 
-                            JsonObject value = getRunProvisionQuery(getJsonById.getLong(DIS_ID));
+                            JsonObject value = getRunProvisionQuery(getProById.getLong(DIS_ID));
+                            String tableName = "provisionTable";
+                            String columnName="monitorName";
 
-                            insertIntoProDB(value);
+                            if (Boolean.FALSE.equals(checkName(tableName, columnName, value.getString(Constant.DIS_NAME)))) {
 
-                            result.put("Provision", Constant.SUCCESS);
+                                insertIntoProDB(value);
 
-                            String disName = value.getString(Constant.DIS_NAME);
+                                result.put("Provision", Constant.SUCCESS);
 
-                            long disID = getProProfile(disName);
+                                String disName = value.getString(Constant.DIS_NAME);
 
-                            result.put("monitorID", disID);
+                                long disID = getProProfile(disName);
 
-                            value.put("monitorID", disID);
+                                result.put("monitorID", disID);
 
-                            provisionBlocking.complete(value);
+                                value.put("monitorID", disID);
 
+                                provisionBlocking.complete(value);
+                            }
+                            else {
+                                result.put("Provision", Constant.SUCCESS);
+
+                                String disName = value.getString(Constant.DIS_NAME);
+
+                                long disID = getProProfile(disName);
+
+                                result.put("monitorID", disID);
+
+                                value.put("monitorID", disID);
+
+                                provisionBlocking.complete(value);
+                            }
                         } else {
                             result.put(Constant.STATUS, Constant.FAILED);
 
@@ -916,7 +856,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                     String metricType = resultValue.getString(Constant.METRIC_TYPE);
 
-                    if (!checkMetricProfile(monitID, metricType)) {
+                    if (checkMetricProfile(monitID, metricType)) {
                         insertIntoUserMetricData(monitID, metricType);
 
                         Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_POLLING, resultValue, pollingHandler -> {
@@ -946,7 +886,6 @@ public class DatabaseEngine extends AbstractVerticle {
                 }
             });
 
-
         });
 
         eventBus.<JsonObject>consumer(Constant.EVENTBUS_GETMETRIC_FOR_POLLING, getData -> {
@@ -974,87 +913,200 @@ public class DatabaseEngine extends AbstractVerticle {
         });
 
 
-        //Discovery
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_CHECKIP, checkip -> {
+        //subroute Monitor
 
+        eventBus.<String>consumer(Constant.EVENTBUS_CHECK_MONITOR, apiDisId -> {
             JsonObject result = new JsonObject();
 
-            JsonObject checkIPJson = checkip.body();
+            var id = apiDisId.body();
 
-            vertx.executeBlocking(event -> {
+            long longid = Long.parseLong(id);
+
+            JsonObject userMonitorData = new JsonObject().put(Constant.MONITOR_ID, longid);
+
+            Bootstrap.vertx.executeBlocking(event -> {
+
                 try {
+                    String tableName = "provisionTable";
 
-                    if (!checkIP(checkIPJson.getString(Constant.IP_ADDRESS))) {
+                    String columnname = "id";
+
+                    if (Boolean.TRUE.equals(checkId(tableName, columnname, userMonitorData.getLong(Constant.MONITOR_ID)))) {
 
                         result.put(Constant.STATUS, Constant.SUCCESS);
 
                         event.complete(result);
-                    } else {
 
+                    } else {
                         result.put(Constant.STATUS, Constant.FAILED);
 
-                        result.put(Constant.ERROR, "IP ALREADY DISCOVERED");
+                        result.put(Constant.ERROR, "WRONG ID");
 
                         event.complete(result);
                     }
 
-                } catch (NullPointerException exception) {
-
-                    LOGGER.debug("NULL POINTER EXCEPTION");
-
-                } catch (SQLException exception) {
-
-                    LOGGER.debug("SQL EXCEPTION");
+                } catch (Exception exception) {
+                    LOGGER.error(exception.getMessage());
 
                 }
-
-            }).onComplete(res -> checkip.reply(result));
-
-
+            }).onComplete(res -> {
+                if (res.succeeded()) {
+                    apiDisId.reply(result);
+                } else {
+                    apiDisId.fail(-1, res.cause().getMessage());
+                }
+            });
         });
 
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_INSERTDB, handler -> {
+        eventBus.<String>consumer(Constant.EVENTBUS_GET_MONITOR_BY_ID, getallData -> {
+            String id = getallData.body();
 
-            JsonObject jsonDbData = handler.body();
+            long longid = Long.parseLong(id);
 
-            vertx.executeBlocking(blockinhandler -> {
+            JsonObject getJsonById = new JsonObject().put(Constant.MONITOR_ID, longid);
 
+
+
+            Bootstrap.vertx.<JsonObject>executeBlocking(blockinghandler ->{
                 JsonObject result = new JsonObject();
-
                 try {
 
-                    if (!checkIP(jsonDbData.getString(Constant.IP_ADDRESS))) {
+                    String tableName = "provisionTable";
 
-                        insertIntoDB(jsonDbData);
+                    String columnname = "id";
 
-                        result.put(Constant.DB_STATUS_INSERTION, Constant.SUCCESS);
+                    if (Boolean.TRUE.equals(checkId(tableName, columnname, getJsonById.getLong(Constant.MONITOR_ID)))) {
+
+                        JsonArray value = getMonitorData(getJsonById.getLong(MONITOR_ID));
+
+                        result.put(Constant.STATUS, Constant.SUCCESS);
+
+                        result.put("Result", value);
+
+                        blockinghandler.complete(result);
 
                     } else {
 
-                        result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
+                        result.put(Constant.STATUS, Constant.FAILED);
 
-                        result.put(Constant.ERROR, "Duplicate IP address");
+                        result.put(Constant.ERROR, "Wrong Monitor ID");
+
+                        blockinghandler.fail(result.encode());
 
                     }
 
-                } catch (SQLException e) {
+                } catch (Exception exception) {
 
-                    result.put(Constant.DB_STATUS_INSERTION, Constant.FAILED);
+                    result.put(Constant.STATUS, Constant.FAILED);
 
-                    result.put(Constant.ERROR, e.getMessage());
+                    result.put(Constant.ERROR, exception.getMessage());
+
+                    blockinghandler.fail(result.encode());
                 }
 
-                blockinhandler.complete(result);
 
-            }).onComplete(handler1 -> handler.reply(handler1.result()));
-
+            }).onComplete(handler1 -> {
+                if (handler1.succeeded()) {
+                    getallData.reply(handler1.result());
+                } else {
+                    getallData.fail(-1, handler1.cause().getMessage());
+                }
+            });
         });
 
         startPromise.complete();
     }
 
 
-    public void insertIntoUserMetricData(long id, String metricType) {
+    public Boolean checkName(String tablename, String column, String name){
+        boolean result = false;
+        if (tablename  == null || column == null || name == null) {
+            return result;
+        } else {
+            try (Connection connection = getConnection()) {
+                var statement = connection.createStatement();
+                var query = "select *  from " + tablename + " where " + column + "=\"" + name + "\"";
+                var resultSet = statement.executeQuery(query);
+                result = resultSet.next();
+
+            } catch (Exception exception) {
+                LOGGER.error(exception.getCause().getMessage());
+            }
+        }
+        return result;
+    }
+    public Boolean checkId(String tablename, String column, Long id){
+        boolean result = false;
+        if (tablename  == null || column == null || id == null) {
+            return result;
+        } else {
+                try (Connection connection = getConnection()) {
+                    var statement = connection.createStatement();
+                    var query = "select *  from " + tablename + " where " + column + "=\"" + id + "\"";
+                    var resultSet = statement.executeQuery(query);
+                    result = resultSet.next();
+
+                } catch (Exception exception) {
+                    LOGGER.error(exception.getCause().getMessage());
+                }
+            }
+        return result;
+    }
+
+    public JsonArray getMonitorData(Long monitorId){
+        JsonArray arrayResult = new JsonArray();
+
+        try (Connection connection = getConnection()) {
+            Statement statement = connection.createStatement();
+            String getById = "select * from provisionTable as p Natural join dumpAllData as d where p.id='" + monitorId + "'order by d.did desc limit 5";
+            ResultSet resultSet = statement.executeQuery(getById);
+            while (resultSet.next()) {
+                JsonObject result = new JsonObject();
+                long monId = resultSet.getLong("id");
+                String ip = resultSet.getString("ipAddress");
+                String type = resultSet.getString("metricType");
+                String timestamp = resultSet.getString("timeStamp");
+                String group = resultSet.getString("metricGroup");
+                String value = resultSet.getString("value");
+
+                result.put(MONITOR_ID, monId);
+                result.put(Constant.IP_ADDRESS, ip);
+                result.put(Constant.METRIC_TYPE, type);
+                result.put("metricGroup", group);
+                result.put("value", value);
+                result.put("timeStamp", timestamp);
+
+                arrayResult.add(result);
+            }
+
+
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage());
+        }
+        return arrayResult;
+    }
+
+    public void insertIntoDumpData(JsonObject dumpData){
+        try (Connection connection = getConnection()) {
+
+            PreparedStatement discoveryStmt;
+            String insertUserSql = "INSERT INTO DiscoveryTemp.dumpAllData(monitorId, metricType, metricGroup, value)"
+                    + "VALUES(?,?,?,?)";
+            discoveryStmt = connection.prepareStatement(insertUserSql);
+
+            discoveryStmt.setLong(1, dumpData.getLong("monitorId"));
+            discoveryStmt.setString(2, dumpData.getString("metric.type"));
+            discoveryStmt.setString(3, dumpData.getString("metricGroup"));
+            discoveryStmt.setString(4, dumpData.getString("value"));
+
+            discoveryStmt.execute();
+            LOGGER.info("dataDumped");
+        } catch (SQLException exception) {
+            LOGGER.error(exception.getMessage());
+        }
+    }
+
+    public void insertIntoUserMetricData(Long id, String metricType) {
 
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
@@ -1092,12 +1144,12 @@ public class DatabaseEngine extends AbstractVerticle {
         }
     }
 
-    public JsonObject checkDiscoveryStatus(long id) {
+    public JsonObject checkDiscoveryStatus(Long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
 
-            String checkIpvalue = "select discovery from DiscoveryTemp.discoveryTable where id='" + id + "'";
+            String checkIpvalue = "select discovery from DiscoveryTemp.discoveryTable where discoveryTable_id='" + id + "'";
 
             ResultSet resultSet = statement.executeQuery(checkIpvalue);
 
@@ -1115,7 +1167,7 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
-    public JsonObject getMonitorQuery(long id, String metricType) {
+    public JsonObject getMonitorQuery(Long id, String metricType) {
         JsonObject arrayResult = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
@@ -1161,22 +1213,21 @@ public class DatabaseEngine extends AbstractVerticle {
 
     }
 
-    public JsonObject getRunProvisionQuery(long id) {
+    public JsonObject getRunProvisionQuery(Long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            //select * from discoveryTable as d join credentialsTable as a on d.credProfile = a.id where d.id = 90007 ;
-            String getById = "select * from DiscoveryTemp.discoveryTable as d join DiscoveryTemp.credentialsTable as c on d.credProfile = c.id where d.id='" + id + "'";
+            String getById = "select * from DiscoveryTemp.discoveryTable as d join DiscoveryTemp.credentialsTable as c on d.cred_profile = c.credentialsTable_id where d.discoveryTable_id='" + id + "'";
             ResultSet resultSet = statement.executeQuery(getById);
             if (resultSet.next()) {
 
-                String disName = resultSet.getString("disName");
-                String username = resultSet.getString("username");
+                String disName = resultSet.getString("dis_name");
+                String username = resultSet.getString("user");
                 String password = resultSet.getString("password");
                 String community = resultSet.getString("community");
                 String version = resultSet.getString("version");
-                String ip = resultSet.getString("ipAddress");
-                String type = resultSet.getString("metricType");
+                String ip = resultSet.getString("ip_address");
+                String type = resultSet.getString("metric_type");
                 int port = resultSet.getInt("port");
 
 
@@ -1199,21 +1250,20 @@ public class DatabaseEngine extends AbstractVerticle {
 
     }
 
-    public JsonObject getRundiscoveryQuery(long id) {
+    public JsonObject getRundiscoveryQuery(Long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            //select * from discoveryTable as d join credentialsTable as a on d.credProfile = a.id where d.id = 90007 ;
-            String getById = "select * from DiscoveryTemp.discoveryTable as d join DiscoveryTemp.credentialsTable as c on d.credProfile = c.id where d.id='" + id + "'";
+            String getById = "select * from DiscoveryTemp.discoveryTable as d join DiscoveryTemp.credentialsTable as c on d.cred_profile = c.credentialsTable_id where d.discoveryTable_id='" + id + "'";
             ResultSet resultSet = statement.executeQuery(getById);
             if (resultSet.next()) {
 
-                String username = resultSet.getString("username");
+                String username = resultSet.getString("user");
                 String password = resultSet.getString("password");
                 String community = resultSet.getString("community");
                 String version = resultSet.getString("version");
-                String ip = resultSet.getString("ipAddress");
-                String type = resultSet.getString("metricType");
+                String ip = resultSet.getString("ip_address");
+                String type = resultSet.getString("metric_type");
                 int port = resultSet.getInt("port");
 
 
@@ -1253,27 +1303,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
         }
 
-        return result;
-    }
-
-    public boolean checkCredProfile(long id) {
-        boolean result = false;
-        try (Connection connection = getConnection()) {
-            Statement statement = connection.createStatement();
-
-            String checkIpvalue = "select credProfile from DiscoveryTemp.discoveryTable where id='" + id + "'";
-
-            ResultSet resultSet = statement.executeQuery(checkIpvalue);
-
-            result = resultSet.next();
-
-        } catch (Exception exception) {
-
-            LOGGER.error(exception.getMessage());
-
-        }
-
-        return result;
+        return !result;
     }
 
     public JsonArray getAllCred() {
@@ -1285,13 +1315,13 @@ public class DatabaseEngine extends AbstractVerticle {
             ResultSet resultSet = statement.executeQuery(getById);
             while (resultSet.next()) {
                 JsonObject result = new JsonObject();
-                long credId = resultSet.getLong("id");
+                long credId = resultSet.getLong("credentialsTable_id");
                 String protocol = resultSet.getString("protocol");
-                String username = resultSet.getString("username");
+                String username = resultSet.getString("user");
                 String password = resultSet.getString("password");
                 String community = resultSet.getString("community");
                 String version = resultSet.getString("version");
-                String credName = resultSet.getString("credName");
+                String credName = resultSet.getString("cred_name");
 
                 result.put(Constant.CRED_ID, credId);
                 result.put(Constant.PROTOCOL, protocol);
@@ -1320,12 +1350,12 @@ public class DatabaseEngine extends AbstractVerticle {
             ResultSet resultSet = statement.executeQuery(getById);
             while (resultSet.next()) {
                 JsonObject result = new JsonObject();
-                long disId = resultSet.getLong("id");
-                String ip = resultSet.getString("ipAddress");
-                String type = resultSet.getString("metricType");
-                Long credProfile = resultSet.getLong("credProfile");
+                long disId = resultSet.getLong("discoveryTable_id");
+                String ip = resultSet.getString("ip_address");
+                String type = resultSet.getString("metric_type");
+                Long credProfile = resultSet.getLong("cred_profile");
                 int port = resultSet.getInt("port");
-                String disName = resultSet.getString("disName");
+                String disName = resultSet.getString("dis_name");
 
                 result.put(DIS_ID, disId);
                 result.put(Constant.IP_ADDRESS, ip);
@@ -1372,90 +1402,40 @@ public class DatabaseEngine extends AbstractVerticle {
         return arrayResult;
     }
 
-    public void updateIntoMonitorMetricDB(JsonObject updateDb) {
+    public void update(String table, JsonObject updateDb){
+        updateDb.remove(METHOD);
+        var query = new StringBuilder();
+        query.append("Update ").append(table).append(" set ");
+        updateDb.stream().forEach(value -> {
+            var column = value.getKey();
+            var data = updateDb.getValue(column);
+            if (column.contains(".")) {
+                column = column.replace(".", "_");
+            }
+            query.append(column).append("=");
+            if (data instanceof String) {
+                query.append("\"").append(data).append("\",");
+            } else {
+                query.append(data).append(",");
+            }
+        });
+        query.setLength(query.length() - 1);
+        query.append(" where ").append(table).append("_id=\"").append(updateDb.getString(table + ".id")).append("\";");
 
         try (Connection connection = getConnection()) {
-
-
-            PreparedStatement discoveryStmt;
-            String updateUserSql = "UPDATE DiscoveryTemp.monitorMetricTable SET metricType = ?,metricGroup = ? , Time = ? WHERE monitorID = ?";
-            discoveryStmt = connection.prepareStatement(updateUserSql);
-            discoveryStmt.setString(1, updateDb.getString("metric.type"));
-
-            discoveryStmt.setString(2, updateDb.getString("metricGroup"));
-
-            discoveryStmt.setLong(3, updateDb.getLong("time"));
-
-            discoveryStmt.setLong(4, updateDb.getLong("monitorID"));
-
-
-            discoveryStmt.executeUpdate();
+            var statement = connection.createStatement();
+            statement.executeUpdate(query.toString());
 
         } catch (Exception exception) {
-            LOGGER.error("Error");
+            LOGGER.error(exception.getMessage());
         }
-
-    }
-
-    public void updateIntoDisDB(JsonObject updateDb) {
-
-        try (Connection connection = getConnection()) {
-
-
-            PreparedStatement discoveryStmt;
-            String updateUserSql = "UPDATE DiscoveryTemp.discoveryTable SET ipAddress = ?,credProfile = ? , disName = ? WHERE ID = ?";
-            discoveryStmt = connection.prepareStatement(updateUserSql);
-            discoveryStmt.setString(1, updateDb.getString("ip.address"));
-
-            discoveryStmt.setString(2, updateDb.getString("cred.profile"));
-
-            discoveryStmt.setString(3, updateDb.getString("dis.name"));
-
-            discoveryStmt.setLong(4, updateDb.getLong(DIS_ID));
-
-
-            discoveryStmt.executeUpdate();
-
-        } catch (Exception exception) {
-            LOGGER.error("Error");
-        }
-
-    }
-
-    public void updateIntoCredDB(JsonObject updateDb) {
-
-        try (Connection connection = getConnection()) {
-
-
-            PreparedStatement discoveryStmt;
-            String updateUserSql = "UPDATE DiscoveryTemp.credentialsTable SET username = ?,password = ? , community = ?, version = ?, credName = ? WHERE ID = ?";
-            discoveryStmt = connection.prepareStatement(updateUserSql);
-            discoveryStmt.setString(1, updateDb.getString(Constant.USER));
-
-            discoveryStmt.setString(2, updateDb.getString(Constant.PASSWORD));
-
-            discoveryStmt.setString(3, updateDb.getString(Constant.COMMUNITY));
-
-            discoveryStmt.setString(4, updateDb.getString(Constant.VERSION));
-
-            discoveryStmt.setString(5, updateDb.getString(Constant.CRED_NAME));
-
-            discoveryStmt.setLong(6, updateDb.getLong(Constant.CRED_ID));
-
-
-            discoveryStmt.executeUpdate();
-
-        } catch (Exception exception) {
-            LOGGER.error("Error");
-        }
-
     }
 
     public void updateDiscovery(Long id) {
 
         try (Connection connection = getConnection()) {
             PreparedStatement discoveryStmt;
-            String updateUserSql = "UPDATE DiscoveryTemp.discoveryTable SET discovery = true WHERE ID = ?";
+            String updateUserSql = "UPDATE DiscoveryTemp.discoveryTable SET discovery = true WHERE discoveryTable_id = ?";
             discoveryStmt = connection.prepareStatement(updateUserSql);
             discoveryStmt.setLong(1, id);
             discoveryStmt.executeUpdate();
@@ -1466,19 +1446,19 @@ public class DatabaseEngine extends AbstractVerticle {
 
     }
 
-    public JsonObject getByDisID(long id) {
+    public JsonObject getByDisID(Long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            String getById = "select * from DiscoveryTemp.discoveryTable where id='" + id + "'";
+            String getById = "select * from DiscoveryTemp.discoveryTable where discoveryTable_id='" + id + "'";
             ResultSet resultSet = statement.executeQuery(getById);
             if (resultSet.next()) {
-                long disId = resultSet.getLong("id");
-                String ip = resultSet.getString("ipAddress");
-                String type = resultSet.getString("metricType");
-                Long credProfile = resultSet.getLong("credProfile");
+                long disId = resultSet.getLong("discoveryTable_id");
+                String ip = resultSet.getString("ip_address");
+                String type = resultSet.getString("metric_type");
+                Long credProfile = resultSet.getLong("cred_profile");
                 int port = resultSet.getInt("port");
-                String disName = resultSet.getString("disName");
+                String disName = resultSet.getString("dis_name");
 
                 result.put(DIS_ID, disId);
                 result.put(Constant.IP_ADDRESS, ip);
@@ -1495,20 +1475,20 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
-    public JsonObject getByCredID(long id) {
+    public JsonObject getByID(String tablename, String columnName, Long id) {
         JsonObject result = new JsonObject();
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            String getById = "select * from DiscoveryTemp.credentialsTable where id='" + id + "'";
+            String getById = "select * from " + tablename + " where " + columnName + " = " + id + "";
             ResultSet resultSet = statement.executeQuery(getById);
             if (resultSet.next()) {
-                long credId = resultSet.getLong("id");
+                long credId = resultSet.getLong("credentialsTable_id");
                 String protocol = resultSet.getString("protocol");
-                String username = resultSet.getString("username");
+                String username = resultSet.getString("user");
                 String password = resultSet.getString("password");
                 String community = resultSet.getString("community");
                 String version = resultSet.getString("version");
-                String credName = resultSet.getString("credName");
+                String credName = resultSet.getString("cred_name");
 
                 result.put(Constant.CRED_ID, credId);
                 result.put(Constant.PROTOCOL, protocol);
@@ -1530,7 +1510,7 @@ public class DatabaseEngine extends AbstractVerticle {
         long result = 0;
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            String getID = "select id from DiscoveryTemp.credentialsTable where credName='" + name + "'";
+            String getID = "select credentialsTable_id from DiscoveryTemp.credentialsTable where cred_name='" + name + "'";
             ResultSet resultSet = statement.executeQuery(getID);
             if (resultSet.next()) {
                 result = Long.parseLong(resultSet.getString(1));
@@ -1545,7 +1525,7 @@ public class DatabaseEngine extends AbstractVerticle {
         long result = 0;
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            String getID = "select id from DiscoveryTemp.discoveryTable where disName='" + name + "'";
+            String getID = "select discoveryTable_id from discoveryTable where dis_name='" + name + "'";
             ResultSet resultSet = statement.executeQuery(getID);
             if (resultSet.next()) {
                 result = Long.parseLong(resultSet.getString(1));
@@ -1571,27 +1551,7 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
-    public Boolean checkCredId(long id) {
-        boolean result = false;
-        try (Connection connection = getConnection()) {
-            Statement statement = connection.createStatement();
-
-            String checkIpvalue = "select id from DiscoveryTemp.credentialsTable where id='" + id + "'";
-
-            ResultSet resultSet = statement.executeQuery(checkIpvalue);
-
-            result = resultSet.next();
-
-        } catch (Exception exception) {
-
-            LOGGER.error(exception.getMessage());
-
-        }
-
-        return result;
-    }
-
-    public Boolean checkDisId(long id) {
+    public Boolean checkDisId(Long id) {
 
         boolean result = false;
         try (Connection connection = getConnection()) {
@@ -1612,85 +1572,26 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
-    public Boolean checkDisName(String name) {
-        boolean result = false;
-        try (Connection connection = getConnection()) {
-            Statement statement = connection.createStatement();
-
-            String checkIpvalue = "select disName from DiscoveryTemp.discoveryTable where disName='" + name + "'";
-
-            ResultSet resultSet = statement.executeQuery(checkIpvalue);
-
-            result = resultSet.next();
-
-        } catch (Exception exception) {
-            LOGGER.error(exception.getMessage());
-        }
-
-        return result;
-    }
-
-    public Boolean checkCredName(String name) {
-        boolean result = false;
-        try (Connection connection = getConnection()) {
-            Statement statement = connection.createStatement();
-
-            String checkIpvalue = "select credName from DiscoveryTemp.credentialsTable where credName='" + name + "'";
-
-            ResultSet resultSet = statement.executeQuery(checkIpvalue);
-
-            result = resultSet.next();
-
-        } catch (Exception exception) {
-            LOGGER.error(exception.getMessage());
-        }
-
-        return result;
-    }
-
-    public Boolean checkIP(String host) throws SQLException {
-        boolean result = false;
-        try (Connection connection = getConnection()) {
-
-
-            Statement statement = connection.createStatement();
-
-            String checkIpvalue = "select ipAddress from DiscoveryTemp.Discovery where ipAddress='" + host + "'";
-
-            ResultSet resultSet = statement.executeQuery(checkIpvalue);
-
-            result = resultSet.next();
-
-        } catch (SQLException exception) {
-
-            LOGGER.error(exception.getMessage());
-
-        }
-        return result;
-    }
-
-    public void insertIntoCredDB(JsonObject jsonObject) {
+    public void insertIntoCredDB(JsonObject credData) {
         try (Connection connection = getConnection()) {
 
             PreparedStatement discoveryStmt;
-            String insertUserSql = "INSERT INTO DiscoveryTemp.credentialsTable(protocol,username,password,community,version,credName)"
+            String insertUserSql = "INSERT INTO DiscoveryTemp.credentialsTable(protocol,user,password,community,version,cred_name)"
                     + "VALUES(?,?,?,?,?,?)";
             discoveryStmt = connection.prepareStatement(insertUserSql);
 
 
-            // discoveryStmt.setString(1, jsonObject.getString("id"));
+            discoveryStmt.setString(1, credData.getString("protocol"));
 
-            discoveryStmt.setString(1, jsonObject.getString("protocol"));
+            discoveryStmt.setString(2, credData.getString("user"));
 
-            discoveryStmt.setString(2, jsonObject.getString("user"));
+            discoveryStmt.setString(3, credData.getString("password"));
 
-            discoveryStmt.setString(3, jsonObject.getString("password"));
+            discoveryStmt.setString(4, credData.getString("community"));
 
-            discoveryStmt.setString(4, jsonObject.getString("community"));
+            discoveryStmt.setString(5, credData.getString("version"));
 
-            discoveryStmt.setString(5, jsonObject.getString("version"));
-
-            discoveryStmt.setString(6, jsonObject.getString("cred.name"));
+            discoveryStmt.setString(6, credData.getString("cred.name"));
 
             discoveryStmt.execute();
         } catch (SQLException exception) {
@@ -1698,7 +1599,7 @@ public class DatabaseEngine extends AbstractVerticle {
         }
     }
 
-    public void insertIntoProDB(JsonObject jsonObject) {
+    public void insertIntoProDB(JsonObject probData) {
         try (Connection connection = getConnection()) {
 
             PreparedStatement discoveryStmt;
@@ -1707,21 +1608,21 @@ public class DatabaseEngine extends AbstractVerticle {
             discoveryStmt = connection.prepareStatement(insertUserSql);
 
 
-            discoveryStmt.setString(1, jsonObject.getString("user"));
+            discoveryStmt.setString(1, probData.getString("user"));
 
-            discoveryStmt.setString(2, jsonObject.getString("password"));
+            discoveryStmt.setString(2, probData.getString("password"));
 
-            discoveryStmt.setString(3, jsonObject.getString("community"));
+            discoveryStmt.setString(3, probData.getString("community"));
 
-            discoveryStmt.setString(4, jsonObject.getString("version"));
+            discoveryStmt.setString(4, probData.getString("version"));
 
-            discoveryStmt.setInt(5, jsonObject.getInteger("port"));
+            discoveryStmt.setInt(5, probData.getInteger("port"));
 
-            discoveryStmt.setString(6, jsonObject.getString("ip.address"));
+            discoveryStmt.setString(6, probData.getString("ip.address"));
 
-            discoveryStmt.setString(7, jsonObject.getString("metric.type"));
+            discoveryStmt.setString(7, probData.getString("metric.type"));
 
-            discoveryStmt.setString(8, jsonObject.getString("dis.name"));
+            discoveryStmt.setString(8, probData.getString("dis.name"));
 
             discoveryStmt.execute();
         } catch (SQLException exception) {
@@ -1729,26 +1630,26 @@ public class DatabaseEngine extends AbstractVerticle {
         }
     }
 
-    public void insertIntoDisDB(JsonObject jsonObject) {
+    public void insertIntoDisDB(JsonObject disData) {
         try (Connection connection = getConnection()) {
-
+            disData.remove(METHOD);
             PreparedStatement discoveryStmt;
-            String insertUserSql = "INSERT INTO DiscoveryTemp.discoveryTable(ipAddress,metricType,credProfile,port,disName,discovery)"
+            String insertUserSql = "INSERT INTO DiscoveryTemp.discoveryTable(ip_address,metric_type,cred_profile,port,dis_name,discovery)"
                     + "VALUES(?,?,?,?,?,?)";
             discoveryStmt = connection.prepareStatement(insertUserSql);
 
             boolean discovery = false;
 
 
-            discoveryStmt.setString(1, jsonObject.getString("ip.address"));
+            discoveryStmt.setString(1, disData.getString("ip.address"));
 
-            discoveryStmt.setString(2, jsonObject.getString("metric.type"));
+            discoveryStmt.setString(2, disData.getString("metric.type"));
 
-            discoveryStmt.setString(3, jsonObject.getString("cred.profile"));
+            discoveryStmt.setString(3, disData.getString("cred.profile"));
 
-            discoveryStmt.setInt(4, jsonObject.getInteger("port"));
+            discoveryStmt.setInt(4, disData.getInteger("port"));
 
-            discoveryStmt.setString(5, jsonObject.getString("dis.name"));
+            discoveryStmt.setString(5, disData.getString("dis.name"));
 
             discoveryStmt.setBoolean(6, discovery);
 
@@ -1759,13 +1660,14 @@ public class DatabaseEngine extends AbstractVerticle {
         }
     }
 
-    public boolean deleteDisDb(long id) {
+
+    public boolean delete(String tablename, String column, long id) {
         boolean result = false;
 
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
 
-            String value = "delete from DiscoveryTemp.discoveryTable where id ='" + id + "'";
+            String value = "delete from " + tablename + " where " + column + " ='" + id + "'";
 
             int resultSet = statement.executeUpdate(value);
 
@@ -1779,53 +1681,6 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
-    public boolean deleteCredDb(long id) {
-        boolean result = false;
-
-        try (Connection connection = getConnection()) {
-            Statement statement = connection.createStatement();
-
-            String value = "delete from DiscoveryTemp.credentialsTable where id ='" + id + "'";
-
-            int resultSet = statement.executeUpdate(value);
-
-            result = resultSet > 0;
-
-
-        } catch (Exception exception) {
-            LOGGER.error(exception.getMessage());
-        }
-
-        return result;
-    }
-
-    public void insertIntoDB(JsonObject jsonObject) throws SQLException {
-        try (Connection connection = getConnection()) {
-
-            PreparedStatement discoveryStmt;
-            String insertUserSql = "INSERT INTO DiscoveryTemp.Discovery(metricType,port,user,password,version,community,ipAddress)"
-                    + "VALUES(?,?,?,?,?,?,?)";
-            discoveryStmt = connection.prepareStatement(insertUserSql);
-
-            discoveryStmt.setString(1, jsonObject.getString("metric.type"));
-
-            discoveryStmt.setString(2, jsonObject.getString("port"));
-
-            discoveryStmt.setString(3, jsonObject.getString("user"));
-
-            discoveryStmt.setString(4, jsonObject.getString("password"));
-
-            discoveryStmt.setString(5, jsonObject.getString("version"));
-
-            discoveryStmt.setString(6, jsonObject.getString("community"));
-
-            discoveryStmt.setString(7, jsonObject.getString("ip.address"));
-
-            discoveryStmt.execute();
-        } catch (SQLException exception) {
-            LOGGER.error(exception.getMessage());
-        }
-    }
 
     private static Connection getConnection() throws SQLException {
         return DriverManager.getConnection("jdbc:mysql://localhost:3306/DiscoveryTemp", "root", "Mind@123");

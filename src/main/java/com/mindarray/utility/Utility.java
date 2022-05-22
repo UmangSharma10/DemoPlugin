@@ -144,15 +144,14 @@ public class Utility {
             String decoder;
 
            while ((readInput = stdInput.readLine()) != null){
-                /*byte[] decodedBytes = Base64.getDecoder().decode(readInput);
+                byte[] decodedBytes = Base64.getDecoder().decode(readInput);
                 decoder = new String(decodedBytes);
-                result = new JsonObject(decoder);*/
-               result = new JsonObject(readInput);
+                result = new JsonObject(decoder);
+
             } while ((readInput = stdError.readLine()) != null) {
-              /*  byte[] decodedBytes = Base64.getDecoder().decode(readInput);
+                byte[] decodedBytes = Base64.getDecoder().decode(readInput);
                 decoder = new String(decodedBytes);
-                result = new JsonObject(decoder);*/
-                result = new JsonObject(readInput);
+                result = new JsonObject(decoder);
 
             }
            result.remove("category");

@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 
 public class Bootstrap {
 
-    public final static Vertx vertx = Vertx.vertx();
-    private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryEngine.class);
+    public static final Vertx vertx = Vertx.vertx();
+    private static final Logger LOGGER = LoggerFactory.getLogger(Bootstrap.class);
     public static void main(String[] args) {
 
         start(APIServer.class.getName())
@@ -44,7 +44,7 @@ public class Bootstrap {
                 promise.complete();
 
             } else {
-                System.out.println(handler.cause());
+                LOGGER.debug(handler.cause().getMessage());
 
                 promise.fail(handler.cause());
 

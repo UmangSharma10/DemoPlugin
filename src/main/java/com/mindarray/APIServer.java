@@ -2,6 +2,7 @@ package com.mindarray;
 
 import com.mindarray.api.Credentials;
 import com.mindarray.api.Discovery;
+import com.mindarray.api.Monitor;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
@@ -29,11 +30,11 @@ public class APIServer extends AbstractVerticle {
 
         var monitorRoute = Router.router(vertx);
 
-        router.mountSubRouter("/api/", discoveryRoute);
+        router.mountSubRouter(Constant.ROUTE_API, discoveryRoute);
 
-        router.mountSubRouter("/api/", credentialRoute);
+        router.mountSubRouter(Constant.ROUTE_API, credentialRoute);
 
-        router.mountSubRouter("/api/", monitorRoute);
+        router.mountSubRouter(Constant.ROUTE_API, monitorRoute);
 
         monitorRoute.route().handler(BodyHandler.create());
 
@@ -48,6 +49,10 @@ public class APIServer extends AbstractVerticle {
         Credentials credentials = new Credentials();
 
         credentials.init(credentialRoute);
+
+        Monitor monitor = new Monitor();
+
+        monitor.init(monitorRoute);
 
 
 

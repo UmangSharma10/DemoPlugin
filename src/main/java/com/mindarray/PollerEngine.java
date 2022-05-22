@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -15,6 +16,8 @@ public class PollerEngine extends AbstractVerticle {
     private static final Logger LOG = LoggerFactory.getLogger(PollerEngine.class);
 
     Utility utility = new Utility();
+
+    DatabaseEngine databaseEngine = new DatabaseEngine();
 
     @Override
     public void start(Promise<Void> startPromise) {
@@ -25,7 +28,7 @@ public class PollerEngine extends AbstractVerticle {
 
             ConcurrentLinkedQueue<JsonObject> queueData = new ConcurrentLinkedQueue<>();
 
-            //ConcurrentLinkedQueue<JsonObject> pollingQueue = new ConcurrentLinkedQueue<>();
+            ConcurrentLinkedQueue<JsonObject> pollingQueue = new ConcurrentLinkedQueue<>();
 
             HashMap<String, Long> orginal = new HashMap<>();
 
@@ -35,6 +38,7 @@ public class PollerEngine extends AbstractVerticle {
 
             Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETMETRIC_FOR_POLLING, pollingData, getData -> {
 
+                JsonObject result = new JsonObject();
                 if (getData.succeeded()) {
 
                     JsonObject entries = getData.result().body();
@@ -42,6 +46,7 @@ public class PollerEngine extends AbstractVerticle {
                     entries.stream().forEach((key) -> {
                         var object = entries.getJsonObject(key.getKey());
                         queueData.add(object);
+                        result.put("MonitorId" , object.getLong("monitorId"));
                     });
 
                     while (!queueData.isEmpty()) {
@@ -59,7 +64,7 @@ public class PollerEngine extends AbstractVerticle {
 
                     }
 
-                    JsonObject result = new JsonObject();
+
 
                     result.put(Constant.STATUS, Constant.SUCCESS);
 
@@ -85,11 +90,9 @@ public class PollerEngine extends AbstractVerticle {
 
                             if (time <= 0) {
 
-                              JsonObject result = utility.spawning(contextMap.get(mapElement.getKey()));
+                                pollingQueue.add(contextMap.get(mapElement.getKey()));
 
                                 schedulingData.put(mapElement.getKey(), orginal.get(mapElement.getKey()));
-
-                              System.out.println(result);
 
                                 queueData.add(contextMap.get(mapElement.getKey()));
 
@@ -105,21 +108,15 @@ public class PollerEngine extends AbstractVerticle {
 
                                 if (time <= 0) {
 
-                                    JsonObject result = utility.spawning(contextMap.get(mapElement.getKey()));
+                                    pollingQueue.add(contextMap.get(mapElement.getKey()));
 
                                     schedulingData.put(mapElement.getKey(), orginal.get(mapElement.getKey()));
 
                                     queueData.add(contextMap.get(mapElement.getKey()));
-
-                                    System.out.println(result);
-
-
-
                                 }
 
 
                             }
-                        System.out.println(schedulingData);
                         }
 
 
@@ -130,20 +127,25 @@ public class PollerEngine extends AbstractVerticle {
 
 
 
-                 /*   Thread callPlugin = new Thread(() -> {
+                    Thread callPlugin = new Thread(() -> {
                 while (true){
                     try {
 
                         if(!pollingQueue.isEmpty()){
 
-                            Iterator<JsonObject> iterator = queueData.iterator();
+                            Iterator<JsonObject> iterator = pollingQueue.iterator();
 
                             while (iterator.hasNext()){
                                 JsonObject value = pollingQueue.poll();
-                                JsonObject result = utility.spawning(value);
-                                pollingQueue.add(value);
 
-                                LOG.debug(result.encode());
+                                if (value != null) {
+                                    JsonObject result = utility.spawning(value);
+                                    databaseEngine.insertIntoDumpData(result);
+
+
+                                }
+
+
                             }
                         }
 
@@ -158,7 +160,7 @@ public class PollerEngine extends AbstractVerticle {
                 }
             });
 
-              callPlugin.start();*/
+              callPlugin.start();
 
 
         });

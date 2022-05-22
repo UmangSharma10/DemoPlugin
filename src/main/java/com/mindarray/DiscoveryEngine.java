@@ -57,13 +57,13 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                     }
 
-               }).onComplete(resultHandler ->{
+               }).onComplete(resultHandler -> {
 
                    JsonObject result = new JsonObject();
+                   if (resultHandler.succeeded()){
+                       JsonObject discoveryData = resultHandler.result();
 
-                   JsonObject discoveryData = resultHandler.result();
-
-                   if (!discoveryData.containsKey("error")){
+                   if (!discoveryData.containsKey("error")) {
 
                        databaseEngine.updateDiscovery(discoveryData.getLong(DIS_ID));
 
@@ -73,9 +73,14 @@ public class DiscoveryEngine extends AbstractVerticle {
 
                        handler.reply(result);
                    }
+               }
                    else {
+                       String discoveryData = resultHandler.cause().getMessage();
+                       result.put(Constant.STATUS, Constant.FAILED);
+                       result.put("Discovery", Constant.FAILED);
+                       result.put(Constant.ERROR, discoveryData);
 
-                       handler.reply(discoveryData);
+                       handler.reply(result);
 
                    }
 
