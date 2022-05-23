@@ -35,9 +35,21 @@ public class Constant {
 
     public static final String EVENTBUS_RUN_DISCOVERY = "run.discovery";
 
-    public static final String EVENTBUS_CHECK_MONITOR = "check.monitor";
+    public static final String EVENTBUS_CHECK_MONITORMETRIC = "check.monitor.metric";
+
+    public static final String EVENTBUS_CHECK_PROMONITORDID = "pro.monitor.id";
+
+    public static final String EVENTBUS_DELETE_PROVISION = "provision.delete";
+
+    public static final String EVENTBUS_MONITOR = "monitor";
+
     public static final String EVENTBUS_GETDISCOVERY = "get.discovery";
     public static final String EVENTBUS_DISCOVERY = "discovery";
+
+    public static final String EVENTBUS_UPDATE_METRIC = "update.metric";
+
+    public static final String EVENTBUS_PRE_POLLING = "prepolling";
+
 
     public static final String EVENTBUS_UPDATE_DIS = "update.discovery";
 
@@ -69,6 +81,8 @@ public class Constant {
 
     public static final String EVENTBUS_DELETECRED = "delete.cred";
 
+    public static final String EVENTBUS_UPDATE_POLLING = "update.polling";
+
     public static final String GET_BY_ID = "getByID";
 
     public static final String ROUTE_API = "/api/";
@@ -96,7 +110,7 @@ public class Constant {
 
     public static final String METRIC_TYPE = "metric.type";
 
-    public static final String MONITOR_ID = "monitorId";
+    public static final String MONITOR_ID = "monitorMetricTable.id";
 
     public static final String USER = "user";
 

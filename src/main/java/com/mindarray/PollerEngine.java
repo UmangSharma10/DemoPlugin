@@ -23,18 +23,46 @@ public class PollerEngine extends AbstractVerticle {
     public void start(Promise<Void> startPromise) {
         LOG.debug("POLLER ENGINE DEPLOYED");
 
-        Bootstrap.vertx.eventBus().<JsonObject>consumer(Constant.EVENTBUS_POLLING, polHandler -> {
+        ConcurrentLinkedQueue<JsonObject> queueData = new ConcurrentLinkedQueue<>();
+
+        ConcurrentLinkedQueue<JsonObject> pollingQueue = new ConcurrentLinkedQueue<>();
+
+        HashMap<String, Long> orginal = new HashMap<>();
+
+        HashMap<String, Long> schedulingData = new HashMap<>();
+
+        HashMap<String, JsonObject> contextMap = new HashMap<>();
+
+
+        vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_PRE_POLLING,new JsonObject(), getData -> {
+            if(getData.succeeded()){
+                JsonObject entries = getData.result().body();
+                entries.stream().forEach((key) -> {
+                    var object = entries.getJsonObject(key.getKey());
+                    queueData.add(object);
+                });
+                while (!queueData.isEmpty()) {
+
+                    JsonObject data = queueData.poll();
+
+                    if (data != null) {
+
+                        orginal.put(data.getString(Constant.IPANDGROUP), data.getLong("time"));
+
+                        schedulingData.put(data.getString(Constant.IPANDGROUP), data.getLong("time"));
+
+                        contextMap.put(data.getString(Constant.IPANDGROUP), data);
+                    }
+
+                }
+            }else{
+                LOG.debug(getData.cause().getMessage());
+            }
+        });
+
+        vertx.eventBus().<JsonObject>consumer(Constant.EVENTBUS_POLLING, polHandler -> {
+
             JsonObject pollingData = polHandler.body();
-
-            ConcurrentLinkedQueue<JsonObject> queueData = new ConcurrentLinkedQueue<>();
-
-            ConcurrentLinkedQueue<JsonObject> pollingQueue = new ConcurrentLinkedQueue<>();
-
-            HashMap<String, Long> orginal = new HashMap<>();
-
-            HashMap<String, Long> schedulingData = new HashMap<>();
-
-            HashMap<String, JsonObject> contextMap = new HashMap<>();
 
             Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GETMETRIC_FOR_POLLING, pollingData, getData -> {
 
@@ -46,7 +74,7 @@ public class PollerEngine extends AbstractVerticle {
                     entries.stream().forEach((key) -> {
                         var object = entries.getJsonObject(key.getKey());
                         queueData.add(object);
-                        result.put("MonitorId" , object.getLong("monitorId"));
+                        result.put(Constant.MONITOR_ID , object.getLong("monitorId"));
                     });
 
                     while (!queueData.isEmpty()) {
@@ -78,9 +106,24 @@ public class PollerEngine extends AbstractVerticle {
 
             });
 
+        });
 
+        vertx.eventBus().<JsonObject>consumer(Constant.EVENTBUS_UPDATE_POLLING , updatePolling ->{
+           JsonObject result = updatePolling.body();
 
+           Iterator<JsonObject> iterator = queueData.iterator();
+           while (iterator.hasNext()){
+               JsonObject entries = iterator.next();
+               if (entries.getString("monitorId").equals(result.getString(Constant.MONITOR_ID)) && entries.getString("metricGroup").equals(result.getString("metricGroup"))&& entries.getString("metric.type").equals(result.getString("metricType"))){
 
+                   entries.put("metricGroup",result.getString("metricGroup"));
+                   entries.put("metric.type", result.getString("metricType"));
+                   entries.put("time", result.getString("Time"));
+               }
+           }
+           updatePolling.reply("Done");
+
+        });
 
                 Bootstrap.vertx.setPeriodic(10000, polhandling -> {
 
@@ -122,12 +165,7 @@ public class PollerEngine extends AbstractVerticle {
 
                 });
 
-
-
-
-
-
-                    Thread callPlugin = new Thread(() -> {
+                Thread callPlugin = new Thread(() -> {
                 while (true){
                     try {
 
@@ -163,7 +201,7 @@ public class PollerEngine extends AbstractVerticle {
               callPlugin.start();
 
 
-        });
+
         startPromise.complete();
     }
 }

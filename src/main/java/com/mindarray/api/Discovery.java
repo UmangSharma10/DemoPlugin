@@ -320,7 +320,7 @@ public class Discovery {
 
                     String runResult = provisionByID.cause().getMessage();
                     LOGGER.debug("Response {} ", runResult);
-                    routingContext.response().setStatusCode(200).putHeader("content-type", Constant.APPLICATION_JSON).end(runResult);
+                    routingContext.response().setStatusCode(400).putHeader("content-type", Constant.APPLICATION_JSON).end(runResult);
                 }
 
 
