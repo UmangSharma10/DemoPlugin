@@ -35,7 +35,7 @@ public class Credentials {
     }
 
     private void validate(RoutingContext routingContext) {
-
+    try {
         var error = new ArrayList<String>();
 
         HttpServerResponse response = routingContext.response();
@@ -81,38 +81,68 @@ public class Credentials {
                 LOGGER.debug("Create Route");
 
                 if (routingContext.getBodyAsJson().containsKey(PROTOCOL)) {
+
                     if (routingContext.getBodyAsJson().getString(PROTOCOL).equals("ssh") || routingContext.getBodyAsJson().getString(PROTOCOL).equals("winrm")) {
-                        if (!(routingContext.getBodyAsJson().containsKey(USER))) {
-                            error.add("User not provided");
+
+                        if (!(routingContext.getBodyAsJson().containsKey(USER)) || routingContext.getBodyAsJson().getString(USER) == null || routingContext.getBodyAsJson().getString(USER).isBlank()) {
+
+                            error.add("User not provided, null or blank");
+
                         }
-                        if (!(routingContext.getBodyAsJson().containsKey(PASSWORD))) {
-                            error.add("Password not provided");
+
+                        if (!(routingContext.getBodyAsJson().containsKey(PASSWORD)) || routingContext.getBodyAsJson().getString(PASSWORD) == null || routingContext.getBodyAsJson().getString(PASSWORD).isBlank()) {
+
+                            error.add("Password not provided, null or blank");
+
                         }
+
                         if (routingContext.getBodyAsJson().containsKey(VERSION)) {
+
                             error.add("Version key field in Protocol " + routingContext.getBodyAsJson().getString(PROTOCOL));
+
                         }
+
                         if (routingContext.getBodyAsJson().containsKey(COMMUNITY)) {
+
                             error.add("Community Key field in Protocol " + routingContext.getBodyAsJson().getString(PROTOCOL));
+
                         }
+
                     } else if (routingContext.getBodyAsJson().getString(PROTOCOL).equals("snmp")) {
-                        if (!(routingContext.getBodyAsJson().containsKey(COMMUNITY))) {
-                            error.add("Community not provided");
+
+                        if (!(routingContext.getBodyAsJson().containsKey(COMMUNITY)) || routingContext.getBodyAsJson().getString(COMMUNITY) == null || routingContext.getBodyAsJson().getString(COMMUNITY).isBlank()) {
+
+                            error.add("Community not provided , null or blank");
+
                         }
-                        if (!(routingContext.getBodyAsJson().containsKey(VERSION))) {
-                            error.add("Version not provided");
+
+                        if (!(routingContext.getBodyAsJson().containsKey(VERSION)) || routingContext.getBodyAsJson().getString(VERSION) == null || routingContext.getBodyAsJson().getString(VERSION).isBlank()) {
+
+                            error.add("Version not provided, null or blank");
+
                         }
+
                         if (routingContext.getBodyAsJson().containsKey(USER)) {
+
                             error.add("Username Key field in Protocol" + routingContext.getBodyAsJson().getString(PROTOCOL));
+
                         }
+
                         if (routingContext.getBodyAsJson().containsKey(PASSWORD)) {
+
                             error.add("Password Key field in Protocol" + routingContext.getBodyAsJson().getString(PROTOCOL));
+
                         }
+
                     } else {
+
                         error.add("Wrong protocol selected");
+
                     }
+
                 }
-                if (routingContext.getBodyAsJson().containsKey(CRED_NAME) && routingContext.getBodyAsJson().getString(CRED_NAME) == null) {
-                    error.add("credential name should be provided");
+                if (!(routingContext.getBodyAsJson().containsKey(CRED_NAME)) || routingContext.getBodyAsJson().getString(CRED_NAME) == null || routingContext.getBodyAsJson().getString(CRED_NAME).isBlank()) {
+                    error.add("credential name not provided, null or blank");
                 }
                 if (error.isEmpty()) {
                     if (data != null) {
@@ -188,11 +218,9 @@ public class Credentials {
                     String getId = routingContext.pathParam("id");
                     Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_DATABASE, new JsonObject().put(METHOD, EVENTBUS_CHECKID_CRED).put(CRED_ID, getId), get -> {
                         if (get.succeeded()) {
-                            JsonObject getDisData = get.result().body();
-                            if (!getDisData.containsKey(Constant.ERROR)) {
                                 routingContext.next();
                             }
-                        } else {
+                         else {
                             String result = get.cause().getMessage();
                             routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                         }
@@ -205,6 +233,9 @@ public class Credentials {
                 routingContext.next();
 
         }
+    }catch (Exception exception){
+        routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+    }
     }
 
 
@@ -215,12 +246,11 @@ public class Credentials {
                     JsonObject getData = getAllHandler.result().body();
                     LOGGER.debug("Response {}", getAllHandler.result().body());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
-                }
-                else {
+                } else {
                     String result = getAllHandler.cause().getMessage();
                     routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
-                });
+            });
         } catch (Exception exception) {
             routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
         }
@@ -277,9 +307,11 @@ public class Credentials {
                     JsonObject getData = getbyIdHandler.result().body();
                     LOGGER.debug("Response {} ", getbyIdHandler.result().body());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
-                } else {
+                }
+                else
+                {
                     String result = getbyIdHandler.cause().getMessage();
-                    routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
+                    routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
             });
         } catch (Exception exception) {
@@ -307,7 +339,7 @@ public class Credentials {
 
                     String result = createHandler.cause().getMessage();
 
-                    routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
+                    routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
 
                 }
 

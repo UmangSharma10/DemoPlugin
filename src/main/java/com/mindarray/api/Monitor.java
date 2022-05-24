@@ -29,6 +29,8 @@ public class Monitor {
 
         monitorRoute.get("/monitor").setName("getAll").handler(this::getAll);
 
+        //monitorRoute.get("/monitor/:id/cpuPercent").setName("get").handler(this::validate).handler(this::getlastInstance);
+
 
 
 
@@ -79,16 +81,12 @@ public class Monitor {
                 String getId = routingContext.pathParam("id");
                 Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_CHECK_PROMONITORDID, getId, get -> {
                     if (get.succeeded()) {
-                        JsonObject getDisData = get.result().body();
-                        if (!getDisData.containsKey(Constant.ERROR)) {
-                            routingContext.next();
-                        } else {
-                            String result = get.result().body().toString();
+                        routingContext.next();
+                    }else {
+                            String result = get.cause().getMessage();
                             routingContext.response().setStatusCode(400).putHeader(Constant.CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                         }
-                    } else {
-                        LOGGER.error("Error");
-                    }
+
                 });
 
                 break;
@@ -146,6 +144,21 @@ public class Monitor {
     }
 
     private void getAll(RoutingContext routingContext) {
+        try {
+            Bootstrap.vertx.eventBus().<JsonObject>request(MONITOR_ENDPOINT, new JsonObject().put(METHOD, EVENTBUS_GET_ALL_MONITOR), getAllHandler -> {
+                if (getAllHandler.succeeded()) {
+                    JsonObject getData = getAllHandler.result().body();
+                    LOGGER.debug("Response {}", getAllHandler.result().body());
+                    routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
+                }
+                else {
+                    String result = getAllHandler.cause().getMessage();
+                    routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
+                }
+            });
+        } catch (Exception exception) {
+            routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+        }
 
     }
 

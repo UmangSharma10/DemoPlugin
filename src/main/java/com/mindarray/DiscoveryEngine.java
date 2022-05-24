@@ -60,28 +60,27 @@ public class DiscoveryEngine extends AbstractVerticle {
                }).onComplete(resultHandler -> {
 
                    JsonObject result = new JsonObject();
-                   if (resultHandler.succeeded()){
+                   if (resultHandler.succeeded()) {
                        JsonObject discoveryData = resultHandler.result();
 
-                   if (!discoveryData.containsKey("error")) {
+                       if (!discoveryData.containsKey("error")) {
 
-                       databaseEngine.updateDiscovery(discoveryData.getLong(DIS_ID));
+                           databaseEngine.updateDiscovery(discoveryData.getLong(DIS_ID));
 
-                       result.put(Constant.STATUS, Constant.SUCCESS);
+                           result.put(Constant.STATUS, Constant.SUCCESS);
 
-                       result.put("Discovery", Constant.SUCCESS);
+                           result.put("Discovery", Constant.SUCCESS);
 
-                       handler.reply(result);
+                           handler.reply(result);
+                       }
                    }
-               }
                    else {
-                       String discoveryData = resultHandler.cause().getMessage();
+                       String resultData = resultHandler.cause().getMessage();
                        result.put(Constant.STATUS, Constant.FAILED);
                        result.put("Discovery", Constant.FAILED);
-                       result.put(Constant.ERROR, discoveryData);
+                       result.put(Constant.ERROR, resultData);
 
-                       handler.reply(result);
-
+                       handler.fail(-1, result.toString());
                    }
 
                });

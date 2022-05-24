@@ -46,6 +46,8 @@ public class Constant {
     public static final String EVENTBUS_GETDISCOVERY = "get.discovery";
     public static final String EVENTBUS_DISCOVERY = "discovery";
 
+    public static final String EVENTBUS_GET_ALL_MONITOR = "get.all.monitors";
+
     public static final String EVENTBUS_UPDATE_METRIC = "update.metric";
 
     public static final String EVENTBUS_PRE_POLLING = "prepolling";
