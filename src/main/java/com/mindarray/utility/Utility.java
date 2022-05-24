@@ -10,42 +10,46 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
 
 public class Utility {
     private static final Logger LOGGER = LoggerFactory.getLogger(APIServer.class);
 
     public void trimData(JsonObject userData) {
 
-        if(userData.containsKey(Constant.IP_ADDRESS) && userData.getString(Constant.IP_ADDRESS) != null){
+        if (userData.containsKey(Constant.IP_ADDRESS) && userData.getString(Constant.IP_ADDRESS) != null) {
 
             userData.put(Constant.IP_ADDRESS, userData.getString(Constant.IP_ADDRESS).trim());
         }
-        if(userData.containsKey(Constant.USER) && userData.getString(Constant.USER) != null){
+        if (userData.containsKey(Constant.USER) && userData.getString(Constant.USER) != null) {
 
             userData.put(Constant.USER, userData.getString(Constant.USER).trim());
         }
-        if(userData.containsKey(Constant.PASSWORD) && userData.getString(Constant.PASSWORD) != null){
+        if (userData.containsKey(Constant.PASSWORD) && userData.getString(Constant.PASSWORD) != null) {
 
             userData.put(Constant.PASSWORD, userData.getString(Constant.PASSWORD).trim());
         }
-        if(userData.containsKey(Constant.METRIC_TYPE) && userData.getString(Constant.METRIC_TYPE) != null){
+        if (userData.containsKey(Constant.METRIC_TYPE) && userData.getString(Constant.METRIC_TYPE) != null) {
 
             userData.put(Constant.METRIC_TYPE, userData.getString(Constant.METRIC_TYPE).trim());
         }
-        if(userData.containsKey(Constant.PORT) && userData.getString(Constant.PORT) != null){
+        if (userData.containsKey(Constant.PORT) && userData.getString(Constant.PORT) != null) {
 
             userData.put(Constant.PORT, userData.getString(Constant.PORT));
         }
-        if(userData.containsKey(Constant.COMMUNITY) && userData.getString(Constant.COMMUNITY) != null){
+        if (userData.containsKey(Constant.COMMUNITY) && userData.getString(Constant.COMMUNITY) != null) {
 
             userData.put(Constant.COMMUNITY, userData.getString(Constant.COMMUNITY).trim());
         }
-        if(userData.containsKey(Constant.VERSION) && userData.getString(Constant.VERSION) != null){
+        if (userData.containsKey(Constant.VERSION) && userData.getString(Constant.VERSION) != null) {
 
             userData.put(Constant.VERSION, userData.getString(Constant.VERSION).trim());
         }
     }
+
     public JsonObject pingAvailiblity(String ip) throws Exception {
         JsonObject ping = new JsonObject();
         HashMap<String, String> myMap = new HashMap<>();
@@ -97,8 +101,7 @@ public class Utility {
                 myMap.put("packetxmt", loss[0]);
                 myMap.put("packetrcv", loss[1]);
 
-            }
-            else if (s2.length == 1){
+            } else if (s2.length == 1) {
                 myMap.put("packetrcv", "0");
 
             }
@@ -115,11 +118,6 @@ public class Utility {
 
         return ping;
     }
-
-
-
-
-
 
 
     public JsonObject spawning(JsonObject pluginJson) {
@@ -143,18 +141,19 @@ public class Utility {
             String readInput;
             String decoder;
 
-           while ((readInput = stdInput.readLine()) != null){
-                byte[] decodedBytes = Base64.getDecoder().decode(readInput);
-                decoder = new String(decodedBytes);
-                result = new JsonObject(decoder);
-
-            } while ((readInput = stdError.readLine()) != null) {
+            while ((readInput = stdInput.readLine()) != null) {
                 byte[] decodedBytes = Base64.getDecoder().decode(readInput);
                 decoder = new String(decodedBytes);
                 result = new JsonObject(decoder);
 
             }
-           result.remove("category");
+            while ((readInput = stdError.readLine()) != null) {
+                byte[] decodedBytes = Base64.getDecoder().decode(readInput);
+                decoder = new String(decodedBytes);
+                result = new JsonObject(decoder);
+
+            }
+            result.remove("category");
             stdInput.close();
             stdError.close();
         } catch (IOException exception) {

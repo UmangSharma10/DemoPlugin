@@ -34,8 +34,8 @@ public class PollerEngine extends AbstractVerticle {
         HashMap<String, JsonObject> contextMap = new HashMap<>();
 
 
-        vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_PRE_POLLING,new JsonObject(), getData -> {
-            if(getData.succeeded()){
+        vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_PRE_POLLING, new JsonObject(), getData -> {
+            if (getData.succeeded()) {
                 JsonObject entries = getData.result().body();
                 entries.stream().forEach((key) -> {
                     var object = entries.getJsonObject(key.getKey());
@@ -55,7 +55,7 @@ public class PollerEngine extends AbstractVerticle {
                     }
 
                 }
-            }else{
+            } else {
                 LOG.debug(getData.cause().getMessage());
             }
         });
@@ -74,7 +74,7 @@ public class PollerEngine extends AbstractVerticle {
                     entries.stream().forEach((key) -> {
                         var object = entries.getJsonObject(key.getKey());
                         queueData.add(object);
-                        result.put(Constant.MONITOR_ID , object.getLong("monitorId"));
+                        result.put(Constant.MONITOR_ID, object.getLong("monitorId"));
                     });
 
                     while (!queueData.isEmpty()) {
@@ -93,7 +93,6 @@ public class PollerEngine extends AbstractVerticle {
                     }
 
 
-
                     result.put(Constant.STATUS, Constant.SUCCESS);
 
                     polHandler.reply(result);
@@ -108,98 +107,89 @@ public class PollerEngine extends AbstractVerticle {
 
         });
 
-        vertx.eventBus().<JsonObject>consumer(Constant.EVENTBUS_UPDATE_POLLING , updatePolling ->{
-           JsonObject result = updatePolling.body();
+        vertx.eventBus().<JsonObject>consumer(Constant.EVENTBUS_UPDATE_POLLING, updatePolling -> {
+            JsonObject result = updatePolling.body();
 
-           Iterator<JsonObject> iterator = queueData.iterator();
-           while (iterator.hasNext()){
-               JsonObject entries = iterator.next();
-               if (entries.getString("monitorId").equals(result.getString(Constant.MONITOR_ID)) && entries.getString("metricGroup").equals(result.getString("metricGroup"))&& entries.getString("metric.type").equals(result.getString("metricType"))){
+            for (JsonObject entries : queueData) {
+                if (entries.getString("monitorId").equals(result.getString(Constant.MONITOR_ID)) && entries.getString("metricGroup").equals(result.getString("metricGroup")) && entries.getString("metric.type").equals(result.getString("metricType"))) {
 
-                   entries.put("metricGroup",result.getString("metricGroup"));
-                   entries.put("metric.type", result.getString("metricType"));
-                   entries.put("time", result.getString("Time"));
-               }
-           }
-           updatePolling.reply("Done");
+                    entries.put("metricGroup", result.getString("metricGroup"));
+                    entries.put("metric.type", result.getString("metricType"));
+                    entries.put("time", result.getString("Time"));
+                }
+            }
+            updatePolling.reply("Done");
 
         });
 
-                Bootstrap.vertx.setPeriodic(10000, polhandling -> {
+        Bootstrap.vertx.setPeriodic(10000, polhandling -> {
 
-                    for (Map.Entry<String, Long> mapElement : schedulingData.entrySet()) {
+            for (Map.Entry<String, Long> mapElement : schedulingData.entrySet()) {
 
-                            long time = mapElement.getValue();
+                long time = mapElement.getValue();
 
-                            if (time <= 0) {
+                if (time <= 0) {
 
-                                pollingQueue.add(contextMap.get(mapElement.getKey()));
+                    pollingQueue.add(contextMap.get(mapElement.getKey()));
 
-                                schedulingData.put(mapElement.getKey(), orginal.get(mapElement.getKey()));
+                    schedulingData.put(mapElement.getKey(), orginal.get(mapElement.getKey()));
 
-                                queueData.add(contextMap.get(mapElement.getKey()));
-
-
-                            }
-
-                            else
-
-                            {
-                                time = time - 10000;
-
-                                schedulingData.put(mapElement.getKey(), time);
-
-                                if (time <= 0) {
-
-                                    pollingQueue.add(contextMap.get(mapElement.getKey()));
-
-                                    schedulingData.put(mapElement.getKey(), orginal.get(mapElement.getKey()));
-
-                                    queueData.add(contextMap.get(mapElement.getKey()));
-                                }
+                    queueData.add(contextMap.get(mapElement.getKey()));
 
 
-                            }
-                        }
+                } else {
+                    time = time - 10000;
 
+                    schedulingData.put(mapElement.getKey(), time);
 
-                });
+                    if (time <= 0) {
 
-                Thread callPlugin = new Thread(() -> {
-                while (true){
-                    try {
+                        pollingQueue.add(contextMap.get(mapElement.getKey()));
 
-                        if(!pollingQueue.isEmpty()){
+                        schedulingData.put(mapElement.getKey(), orginal.get(mapElement.getKey()));
 
-                            Iterator<JsonObject> iterator = pollingQueue.iterator();
-
-                            while (iterator.hasNext()){
-                                JsonObject value = pollingQueue.poll();
-
-                                if (value != null) {
-                                    JsonObject result = utility.spawning(value);
-                                    databaseEngine.insertIntoDumpData(result);
-
-
-                                }
-
-
-                            }
-                        }
-
+                        queueData.add(contextMap.get(mapElement.getKey()));
                     }
 
-                    catch (Exception exception){
-
-                       LOG.error(exception.getMessage());
-
-                    }
 
                 }
-            });
+            }
 
-              callPlugin.start();
 
+        });
+
+        Thread callPlugin = new Thread(() -> {
+            while (true) {
+                try {
+
+                    if (!pollingQueue.isEmpty()) {
+
+                        Iterator<JsonObject> iterator = pollingQueue.iterator();
+
+                        while (iterator.hasNext()) {
+                            JsonObject value = pollingQueue.poll();
+
+                            if (value != null) {
+                                JsonObject result = utility.spawning(value);
+                                databaseEngine.insertIntoDumpData(result);
+
+
+                            }
+
+
+                        }
+                    }
+
+                } catch (Exception exception) {
+
+                    LOG.error(exception.getMessage());
+
+                }
+
+            }
+        });
+
+        callPlugin.start();
 
 
         startPromise.complete();

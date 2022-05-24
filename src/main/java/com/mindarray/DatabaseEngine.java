@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 
 import static com.mindarray.Constant.*;
 
@@ -593,7 +594,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                                 result.put(Constant.DB_STATUS_UPDATE, Constant.FAILED);
 
-                                result.put(Constant.ERROR, "CRED PROFILE DOESNT EXIST IN CRED DB");
+                                result.put(Constant.ERROR, "CRED PROFILE DOESNT EXIST IN DISCOVERY DB");
 
                                 blockinhandler.fail(result.encode());
 
@@ -724,11 +725,11 @@ public class DatabaseEngine extends AbstractVerticle {
                                     JsonObject value = getRundiscoveryQuery(runDataById.getLong(DIS_ID));
 
                                     value.put(CATEGORY, "discovery");
-                                        LOGGER.debug(value.encode());
+                                    LOGGER.debug(value.encode());
 
-                                        result.put(Constant.STATUS, Constant.SUCCESS);
+                                    result.put(Constant.STATUS, Constant.SUCCESS);
 
-                                        blockinghandler.complete(value);
+                                    blockinghandler.complete(value);
 
                                 } else {
                                     result.put(Constant.STATUS, Constant.FAILED);
@@ -767,16 +768,13 @@ public class DatabaseEngine extends AbstractVerticle {
                             JsonObject value = asyncResult.result();
                             eventBus.<JsonObject>request(Constant.EVENTBUS_DISCOVERY, value, discovery -> {
 
-                                if (discovery.succeeded())
-                                {
+                                if (discovery.succeeded()) {
                                     LOGGER.debug("Response {} ", discovery.result().body());
-                                 JsonObject resultDiscovery = discovery.result().body();
-                                if (!resultDiscovery.containsKey(Constant.ERROR))
-                                {
-                                    handler.reply(resultDiscovery);
-                                }
-                                }
-                                else {
+                                    JsonObject resultDiscovery = discovery.result().body();
+                                    if (!resultDiscovery.containsKey(Constant.ERROR)) {
+                                        handler.reply(resultDiscovery);
+                                    }
+                                } else {
                                     String resultDiscovery = discovery.cause().getMessage();
                                     handler.fail(-1, new JsonObject().put(ERROR, resultDiscovery).encode());
                                 }
@@ -832,8 +830,7 @@ public class DatabaseEngine extends AbstractVerticle {
         });
 
 
-        eventBus.<JsonObject>consumer(Constant.EVENTBUS_PROVISION, provisionHandler ->
-        {
+        eventBus.<JsonObject>consumer(Constant.EVENTBUS_PROVISION, provisionHandler -> {
             String discoveryid = provisionHandler.body().getString(DIS_ID);
 
             long disIDL = Long.parseLong(discoveryid);
@@ -970,8 +967,6 @@ public class DatabaseEngine extends AbstractVerticle {
 
         });
 
-        //subroute Monitor
-
 
         eventBus.<JsonObject>localConsumer(MONITOR_ENDPOINT, handler -> {
             switch (handler.body().getString(METHOD)) {
@@ -1044,7 +1039,7 @@ public class DatabaseEngine extends AbstractVerticle {
                     Bootstrap.vertx.executeBlocking(blockinhandler -> {
                         JsonObject result = new JsonObject();
                         try {
-
+                            LOGGER.debug("Before {}", LocalDateTime.now());
                             JsonArray value = getAllDumpData();
 
                             result.put(STATUS, SUCCESS);
@@ -1661,7 +1656,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            String getAll = "select * from dumpAllData where '2022-05-23 12:00:00' and now();";
+            String getAll = "select * from dumpAllData where timeStamp between '2022-05-23 12:00:00' and '2022-05-24 12:00:00';";
             ResultSet resultSet = statement.executeQuery(getAll);
             while (resultSet.next()) {
                 JsonObject result = new JsonObject();

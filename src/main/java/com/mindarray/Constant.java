@@ -2,7 +2,7 @@ package com.mindarray;
 
 public class Constant {
 
-    private Constant(){
+    private Constant() {
     }
 
 
@@ -55,9 +55,9 @@ public class Constant {
 
     public static final String EVENTBUS_UPDATE_DIS = "update.discovery";
 
-    public static final  String EVENTBUS_UPDATE_CRED = "update.cred";
+    public static final String EVENTBUS_UPDATE_CRED = "update.cred";
 
-    public static final  String EVENTBUS_GETALLDIS = "get.all.discovery";
+    public static final String EVENTBUS_GETALLDIS = "get.all.discovery";
 
     public static final String EVENTBUS_GETALLCRED = "get.all.cred";
 
@@ -123,7 +123,6 @@ public class Constant {
     public static final String CATEGORY = "category";
 
 
-
     public static final String COMMUNITY = "community";
 
     public static final String IPANDGROUP = "idAndGroup";
@@ -134,19 +133,19 @@ public class Constant {
 
     public static final String VERSION2C = "v2c";
 
-   public static final String ERROR = "error";
+    public static final String ERROR = "error";
 
-   public static final String STATUS = "status";
+    public static final String STATUS = "status";
 
-   public static final String SUCCESS = "success";
+    public static final String SUCCESS = "success";
 
-   public static final String FAILED = "failed";
+    public static final String FAILED = "failed";
 
-   public static final String UP = "up";
+    public static final String UP = "up";
 
-   public static final String DOWN = "down";
+    public static final String DOWN = "down";
 
-   public static final String RESULT = "result";
+    public static final String RESULT = "result";
 
 
 }

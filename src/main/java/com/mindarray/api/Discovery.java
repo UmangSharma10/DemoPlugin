@@ -1,7 +1,6 @@
 package com.mindarray.api;
 
 import com.mindarray.Bootstrap;
-import static com.mindarray.Constant.*;
 import com.mindarray.Constant;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
@@ -13,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static com.mindarray.Constant.*;
+
 public class Discovery {
     private static final Logger LOGGER = LoggerFactory.getLogger(Discovery.class);
 
@@ -22,7 +23,7 @@ public class Discovery {
 
         discoveryRoute.post(DISCOVERY_ENDPOINT).setName("create").handler(this::validate).handler(this::create);
 
-        discoveryRoute.get(DISCOVERY_ENDPOINT  +"/:id").setName("get").handler(this::validate).handler(this::getById);
+        discoveryRoute.get(DISCOVERY_ENDPOINT + "/:id").setName("get").handler(this::validate).handler(this::getById);
 
         discoveryRoute.get(DISCOVERY_ENDPOINT).setName("getAll").handler(this::validate).handler(this::getAll);
 
@@ -30,9 +31,9 @@ public class Discovery {
 
         discoveryRoute.put(DISCOVERY_ENDPOINT).setName("update").handler(this::validate).handler(this::update);
 
-        discoveryRoute.post(PROVISION_ENDPOINT +"/:id").setName("provision").handler(this::createProvision);
+        discoveryRoute.post(PROVISION_ENDPOINT + "/:id").setName("provision").handler(this::createProvision);
 
-        discoveryRoute.post(  DISCOVERY_ENDPOINT +"/:id/run").setName("run").handler(this::runDiscovery);
+        discoveryRoute.post(DISCOVERY_ENDPOINT + "/:id/run").setName("run").handler(this::runDiscovery);
     }
 
 
@@ -152,25 +153,34 @@ public class Discovery {
 
                 case "update":
                     LOGGER.debug("Update Route");
-                    if (!(routingContext.getBodyAsJson().containsKey(DIS_ID)) || routingContext.getBodyAsJson().getString(DIS_ID) == null) {
+                    if (!(routingContext.getBodyAsJson().containsKey(DIS_ID)) || routingContext.getBodyAsJson().getString(DIS_ID) == null || routingContext.getBodyAsJson().getString(DIS_ID).isBlank()) {
                         response.setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
                         response.end(new JsonObject().put(STATUS, FAILED).put(ERROR, "Id is null").encodePrettily());
                         LOGGER.error("id is null");
+                    }
+                    if (!(routingContext.getBodyAsJson().containsKey(CRED_PROFILE)) || routingContext.getBodyAsJson().getString(CRED_PROFILE) == null || routingContext.getBodyAsJson().getString(CRED_PROFILE).isBlank()) {
+                        response.setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
+                        response.end(new JsonObject().put(STATUS, FAILED).put(ERROR, "cred.profile is null").encodePrettily());
+                        LOGGER.error("cred.profile is null");
                     } else {
-                        data.put(METHOD, EVENTBUS_CHECKID_DISCOVERY);
-                        Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_DATABASE, data, handler -> {
-                            if (handler.succeeded()) {
-                                JsonObject checkUpdateData = handler.result().body();
-                                if (!checkUpdateData.containsKey(Constant.ERROR)) {
-                                    routingContext.next();
+                        if (data != null) {
+                            data.put(METHOD, EVENTBUS_CHECKID_DISCOVERY);
+                            Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_DATABASE, data, handler -> {
+                                if (handler.succeeded()) {
+                                    JsonObject checkUpdateData = handler.result().body();
+                                    if (!checkUpdateData.containsKey(Constant.ERROR)) {
+                                        routingContext.next();
+                                    }
+                                } else {
+                                    response.setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
+                                    response.end(new JsonObject().put(ERROR, handler.cause().getMessage()).put(STATUS, FAILED).encodePrettily());
+                                    LOGGER.error(handler.cause().getMessage());
                                 }
-                            } else {
-                                response.setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
-                                response.end(new JsonObject().put(ERROR, handler.cause().getMessage()).put(STATUS, FAILED).encodePrettily());
-                                LOGGER.error(handler.cause().getMessage());
-                            }
 
-                        });
+                            });
+                        } else {
+                            LOGGER.error("No data");
+                        }
                     }
                     break;
                 case "get":
@@ -200,7 +210,7 @@ public class Discovery {
                     routingContext.next();
 
             }
-        }catch (Exception exception){
+        } catch (Exception exception) {
             routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
         }
     }
@@ -214,16 +224,15 @@ public class Discovery {
                 if (updateHandler.succeeded()) {
                     JsonObject dbData = updateHandler.result().body();
                     LOGGER.debug("Response {} ", updateHandler.result().body());
-                    routingContext.response().setStatusCode(200).putHeader("content-type", Constant.APPLICATION_JSON).end(dbData.encode());
-                }
-                else {
+                    routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(dbData.encode());
+                } else {
                     routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
                     routingContext.response().end(new JsonObject().put(STATUS, FAILED).put(ERROR, updateHandler.cause().getMessage()).encodePrettily());
                     LOGGER.error(updateHandler.cause().getMessage());
                 }
             });
         } catch (Exception exception) {
-            routingContext.response().setStatusCode(400).putHeader("content-type", Constant.APPLICATION_JSON).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
+            routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
         }
     }
 
@@ -236,8 +245,7 @@ public class Discovery {
                     JsonObject deleteResult = deletebyID.result().body();
                     LOGGER.debug("Response {} ", deletebyID.result().body());
                     routingContext.response().setStatusCode(200).putHeader("content-type", Constant.APPLICATION_JSON).end(deleteResult.encode());
-                }
-                else {
+                } else {
                     String result = deletebyID.cause().getMessage();
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
@@ -274,8 +282,7 @@ public class Discovery {
                     JsonObject getData = getAllHandler.result().body();
                     LOGGER.debug("Response {}", getAllHandler.result().body());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
-                }
-                else {
+                } else {
                     String result = getAllHandler.cause().getMessage();
                     routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
@@ -294,8 +301,7 @@ public class Discovery {
                     JsonObject dbData = createHandler.result().body();
                     LOGGER.debug("Response {} ", createHandler.result().body());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(dbData.encode());
-                }
-                else {
+                } else {
                     String result = createHandler.cause().getMessage();
                     routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }

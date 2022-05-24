@@ -9,16 +9,16 @@ import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 
 import static com.mindarray.Constant.*;
-import static com.mindarray.Constant.FAILED;
 
 public class Monitor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Monitor.class);
 
-    public void init(Router monitorRoute){
+    public void init(Router monitorRoute) {
         LOGGER.debug("Monitor Class Deployed");
 
         monitorRoute.put("/monitor").setName("update").handler(this::validate).handler(this::update);
@@ -30,8 +30,6 @@ public class Monitor {
         monitorRoute.get("/monitor").setName("getAll").handler(this::getAll);
 
         //monitorRoute.get("/monitor/:id/cpuPercent").setName("get").handler(this::validate).handler(this::getlastInstance);
-
-
 
 
     }
@@ -75,17 +73,17 @@ public class Monitor {
             }
         }
 
-        switch (routingContext.currentRoute().getName()){
+        switch (routingContext.currentRoute().getName()) {
             case "get":
                 LOGGER.debug("getById");
                 String getId = routingContext.pathParam("id");
                 Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_CHECK_PROMONITORDID, getId, get -> {
                     if (get.succeeded()) {
                         routingContext.next();
-                    }else {
-                            String result = get.cause().getMessage();
-                            routingContext.response().setStatusCode(400).putHeader(Constant.CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
-                        }
+                    } else {
+                        String result = get.cause().getMessage();
+                        routingContext.response().setStatusCode(400).putHeader(Constant.CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
+                    }
 
                 });
 
@@ -93,13 +91,12 @@ public class Monitor {
 
             case "update":
                 LOGGER.debug("Monitor Metric Update");
-                if (!(routingContext.getBodyAsJson().containsKey(MONITOR_ID)) || routingContext.getBodyAsJson().getString(MONITOR_ID) == null) {
+                if (!(routingContext.getBodyAsJson().containsKey(MONITOR_ID)) || routingContext.getBodyAsJson().getString(MONITOR_ID) == null || routingContext.getBodyAsJson().getString(MONITOR_ID).isBlank()) {
                     response.setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
                     response.end(new JsonObject().put(STATUS, FAILED).put(ERROR, "Id is null").encodePrettily());
                     LOGGER.error("id is null");
-                }
-                else {
-                    if (data!=null) {
+                } else {
+                    if (data != null) {
                         data.put(METHOD, EVENTBUS_CHECK_MONITORMETRIC);
                         Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_DATABASE, data, handler -> {
                             if (handler.succeeded()) {
@@ -120,19 +117,18 @@ public class Monitor {
 
             case "delete":
                 LOGGER.debug("delete Route");
-                if (routingContext.pathParam("id")!= null) {
+                if (routingContext.pathParam("id") != null) {
                     String id = routingContext.pathParam("id");
                     Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_CHECK_PROMONITORDID, id, deleteid -> {
                         if (deleteid.succeeded()) {
                             routingContext.next();
-                        }else {
+                        } else {
                             response.setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
                             response.end(new JsonObject().put(ERROR, deleteid.cause().getMessage()).put(STATUS, FAILED).encodePrettily());
                             LOGGER.error(deleteid.cause().getMessage());
                         }
                     });
-                }
-                else {
+                } else {
                     response.setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
                     response.end(new JsonObject().put(ERROR, "id is null").put(STATUS, FAILED).encodePrettily());
                     LOGGER.error("id is null");
@@ -145,13 +141,14 @@ public class Monitor {
 
     private void getAll(RoutingContext routingContext) {
         try {
+            int sec = LocalDateTime.now().getSecond();
             Bootstrap.vertx.eventBus().<JsonObject>request(MONITOR_ENDPOINT, new JsonObject().put(METHOD, EVENTBUS_GET_ALL_MONITOR), getAllHandler -> {
                 if (getAllHandler.succeeded()) {
                     JsonObject getData = getAllHandler.result().body();
                     LOGGER.debug("Response {}", getAllHandler.result().body());
+                    LOGGER.debug("After {}", sec - LocalDateTime.now().getSecond());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
-                }
-                else {
+                } else {
                     String result = getAllHandler.cause().getMessage();
                     routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
@@ -170,8 +167,7 @@ public class Monitor {
                     JsonObject getData = getLastInstanceHandler.result().body();
                     LOGGER.debug("Response {} ", getLastInstanceHandler.result().body());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
-                }
-                else {
+                } else {
                     String result = getLastInstanceHandler.cause().getMessage();
                     routingContext.response().setStatusCode(400).putHeader("content-type", Constant.APPLICATION_JSON).end(result);
                 }
@@ -190,8 +186,7 @@ public class Monitor {
                     JsonObject deleteResult = deletebyID.result().body();
                     LOGGER.debug("Response {} ", deletebyID.result().body());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(deleteResult.encode());
-                }
-                else {
+                } else {
                     String result = deletebyID.cause().getMessage();
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
@@ -210,8 +205,7 @@ public class Monitor {
                     JsonObject dbData = updateHandler.result().body();
                     LOGGER.debug("Response {} ", updateHandler.result().body());
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(dbData.encode());
-                }
-                else {
+                } else {
                     routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, APPLICATION_JSON);
                     routingContext.response().end(new JsonObject().put(STATUS, FAILED).put(ERROR, updateHandler.cause().getMessage()).encodePrettily());
                     LOGGER.error(updateHandler.cause().getMessage());
