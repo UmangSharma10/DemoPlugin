@@ -29,10 +29,12 @@ public class Monitor {
 
         monitorRoute.get("/monitor").setName("getAll").handler(this::getAll);
 
-        //monitorRoute.get("/monitor/:id/cpuPercent").setName("get").handler(this::validate).handler(this::getlastInstance);
+        monitorRoute.get("/monitor/:id/cpuPercent").setName("cpuData").handler(this::validate).handler(this::getCpuPercent);
 
 
     }
+
+
 
     private void validate(RoutingContext routingContext) {
 
@@ -75,9 +77,9 @@ public class Monitor {
 
         switch (routingContext.currentRoute().getName()) {
             case "get":
-                LOGGER.debug("getById");
+                LOGGER.debug("getLastInstance");
                 String getId = routingContext.pathParam("id");
-                Bootstrap.vertx.eventBus().<JsonObject>request(EVENTBUS_CHECK_PROMONITORDID, getId, get -> {
+                Bootstrap.vertx.eventBus().<JsonObject>request(MONITOR_ENDPOINT, new JsonObject().put(METHOD, EVENTBUS_CHECK_PROMONITORDID).put(MONITOR_ID, getId), get -> {
                     if (get.succeeded()) {
                         routingContext.next();
                     } else {
@@ -136,6 +138,20 @@ public class Monitor {
 
                 break;
 
+            case "cpuData":
+                LOGGER.debug("getById");
+                String cpuDataID = routingContext.pathParam("id");
+                Bootstrap.vertx.eventBus().<JsonObject>request(MONITOR_ENDPOINT, new JsonObject().put(MONITOR_ID, cpuDataID).put(METHOD, EVENTBUS_CHECK_PROMONITORDID), get -> {
+                    if (get.succeeded()) {
+                        routingContext.next();
+                    } else {
+                        String result = get.cause().getMessage();
+                        routingContext.response().setStatusCode(400).putHeader(Constant.CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
+                    }
+
+                });
+                break;
+
         }
     }
 
@@ -169,7 +185,7 @@ public class Monitor {
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
                 } else {
                     String result = getLastInstanceHandler.cause().getMessage();
-                    routingContext.response().setStatusCode(400).putHeader("content-type", Constant.APPLICATION_JSON).end(result);
+                    routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
             });
         } catch (Exception exception) {
@@ -188,7 +204,7 @@ public class Monitor {
                     routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(deleteResult.encode());
                 } else {
                     String result = deletebyID.cause().getMessage();
-                    routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
+                    routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
                 }
             });
 
@@ -215,6 +231,23 @@ public class Monitor {
             routingContext.response().setStatusCode(400).putHeader("content-type", Constant.APPLICATION_JSON).end(new JsonObject().put(Constant.STATUS, Constant.FAILED).encode());
         }
 
+    }
+    private void getCpuPercent(RoutingContext routingContext) {
+        try {
+            String getId = routingContext.pathParam("id");
+            Bootstrap.vertx.eventBus().<JsonObject>request(MONITOR_ENDPOINT, new JsonObject().put(METHOD, EVENTBUS_GET_CPUPERCENT).put(MONITOR_ID, getId), getLastInstanceHandler -> {
+                if (getLastInstanceHandler.succeeded()) {
+                    JsonObject getData = getLastInstanceHandler.result().body();
+                    LOGGER.debug("Response {} ", getLastInstanceHandler.result().body());
+                    routingContext.response().setStatusCode(200).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(getData.encode());
+                } else {
+                    String result = getLastInstanceHandler.cause().getMessage();
+                    routingContext.response().setStatusCode(400).putHeader(CONTENT_TYPE, Constant.APPLICATION_JSON).end(result);
+                }
+            });
+        } catch (Exception exception) {
+            LOGGER.error(exception.getMessage());
+        }
     }
 
 

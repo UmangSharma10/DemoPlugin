@@ -7,7 +7,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.mindarray.Constant.DIS_ID;
+import static com.mindarray.Constant.*;
 
 public class DiscoveryEngine extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryEngine.class);
@@ -61,16 +61,25 @@ public class DiscoveryEngine extends AbstractVerticle {
                 JsonObject result = new JsonObject();
                 if (resultHandler.succeeded()) {
                     JsonObject discoveryData = resultHandler.result();
+                    discoveryData.put(METHOD, EVENTBUS_UPDATE_DISCOVERYMETRIC);
+                    if (!discoveryData.containsKey(ERROR)) {
+                        vertx.eventBus().request(EVENTBUS_DATABASE, discoveryData, updateDisMet->{
+                            if (updateDisMet.succeeded()){
+                                result.put(Constant.STATUS, Constant.SUCCESS);
 
-                    if (!discoveryData.containsKey("error")) {
+                                result.put("Discovery", Constant.SUCCESS);
 
-                        databaseEngine.updateDiscovery(discoveryData.getLong(DIS_ID));
+                                handler.reply(result);
+                            }
+                            else {
+                                String resultData = updateDisMet.cause().getMessage();
+                                result.put(Constant.STATUS, Constant.FAILED);
+                                result.put("Discovery", Constant.FAILED);
+                                result.put(Constant.ERROR, resultData);
 
-                        result.put(Constant.STATUS, Constant.SUCCESS);
-
-                        result.put("Discovery", Constant.SUCCESS);
-
-                        handler.reply(result);
+                                handler.fail(-1, resultData);
+                            }
+                        });
                     }
                 } else {
                     String resultData = resultHandler.cause().getMessage();

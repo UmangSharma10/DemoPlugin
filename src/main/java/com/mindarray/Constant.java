@@ -39,9 +39,15 @@ public class Constant {
 
     public static final String EVENTBUS_CHECK_PROMONITORDID = "pro.monitor.id";
 
+    public static final String EVENTBUS_UPDATE_DISCOVERYMETRIC = "update.dis.metric";
+
+    public static final String EVENTBUS_DATADUMP = "data.dump";
+
     public static final String EVENTBUS_DELETE_PROVISION = "provision.delete";
 
     public static final String EVENTBUS_MONITOR = "monitor";
+
+    public static final String EVENTBUS_GET_CPUPERCENT = "get.cpu.percent";
 
     public static final String EVENTBUS_GETDISCOVERY = "get.discovery";
     public static final String EVENTBUS_DISCOVERY = "discovery";

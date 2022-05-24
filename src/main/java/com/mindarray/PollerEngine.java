@@ -17,8 +17,6 @@ public class PollerEngine extends AbstractVerticle {
 
     Utility utility = new Utility();
 
-    DatabaseEngine databaseEngine = new DatabaseEngine();
-
     @Override
     public void start(Promise<Void> startPromise) {
         LOG.debug("POLLER ENGINE DEPLOYED");
@@ -167,13 +165,20 @@ public class PollerEngine extends AbstractVerticle {
                         Iterator<JsonObject> iterator = pollingQueue.iterator();
 
                         while (iterator.hasNext()) {
+
                             JsonObject value = pollingQueue.poll();
 
                             if (value != null) {
+
                                 JsonObject result = utility.spawning(value);
-                                databaseEngine.insertIntoDumpData(result);
 
-
+                                vertx.eventBus().request(Constant.EVENTBUS_DATADUMP, result, datadump -> {
+                                    if (datadump.succeeded()) {
+                                        LOG.info("Data Dumped");
+                                    } else {
+                                        LOG.info("Data not Dumped");
+                                    }
+                                });
                             }
 
 
