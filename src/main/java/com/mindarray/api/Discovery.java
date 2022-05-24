@@ -2,6 +2,7 @@ package com.mindarray.api;
 
 import com.mindarray.Bootstrap;
 import com.mindarray.Constant;
+import com.mindarray.utility.ValidationUtil;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -16,6 +17,8 @@ import static com.mindarray.Constant.*;
 
 public class Discovery {
     private static final Logger LOGGER = LoggerFactory.getLogger(Discovery.class);
+
+    ValidationUtil validationUtil = new ValidationUtil();
 
     public void init(Router discoveryRoute) {
 
@@ -93,11 +96,17 @@ public class Discovery {
                     if (!(routingContext.getBodyAsJson().containsKey(IP_ADDRESS)) || routingContext.getBodyAsJson().getString(IP_ADDRESS) == null || routingContext.getBodyAsJson().getString(IP_ADDRESS).isBlank()) {
                         error.add("IP is null is blank");
                     }
+                    if(Boolean.FALSE.equals(validationUtil.isValidIp(routingContext.getBodyAsJson().getString(IP_ADDRESS)))){
+                        error.add("IP address is not valid");
+                    }
                     if (!(routingContext.getBodyAsJson().containsKey(METRIC_TYPE)) || routingContext.getBodyAsJson().getString(METRIC_TYPE) == null || routingContext.getBodyAsJson().getString(METRIC_TYPE).isBlank()) {
                         error.add("metric.type is null or blank ");
                     }
                     if (!(routingContext.getBodyAsJson().containsKey(PORT)) || routingContext.getBodyAsJson().getInteger(PORT) == null || routingContext.getBodyAsJson().isEmpty()) {
                         error.add("Port not defined for discovery or null or blank");
+                    }
+                    if (Boolean.FALSE.equals(validationUtil.isValidPort(String.valueOf(routingContext.getBodyAsJson().getInteger(PORT))))){
+                        error.add("port out of scope");
                     }
                     if (!(routingContext.getBodyAsJson().containsKey(CRED_PROFILE)) || routingContext.getBodyAsJson().getString(CRED_PROFILE) == null || routingContext.getBodyAsJson().getString(CRED_PROFILE).isBlank()) {
                         error.add("Credential Profile not defined for discovery or null");

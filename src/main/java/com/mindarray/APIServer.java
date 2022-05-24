@@ -54,10 +54,6 @@ public class APIServer extends AbstractVerticle {
 
         monitor.init(monitorRoute);
 
-
-
-
-
         vertx.createHttpServer().requestHandler(router).listen(8888).onComplete(handler -> {
 
             if (handler.succeeded()) {
