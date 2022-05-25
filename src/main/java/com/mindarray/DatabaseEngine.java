@@ -864,7 +864,6 @@ public class DatabaseEngine extends AbstractVerticle {
             }
         });
 
-
         eventBus.<JsonObject>consumer(Constant.EVENTBUS_PROVISION, provisionHandler -> {
             String discoveryid = provisionHandler.body().getString(DIS_ID);
 
@@ -1023,7 +1022,6 @@ public class DatabaseEngine extends AbstractVerticle {
             });
 
         });
-
 
         eventBus.<JsonObject>localConsumer(MONITOR_ENDPOINT, handler -> {
             switch (handler.body().getString(METHOD)) {
@@ -1226,7 +1224,7 @@ public class DatabaseEngine extends AbstractVerticle {
 
                             if (Boolean.TRUE.equals(checkId(tableName, columnname, getJsonById.getLong(Constant.MONITOR_ID)))) {
 
-                                JsonArray value = getMonitorData(getJsonById.getLong(MONITOR_ID));
+                                JsonArray value = getLastmonitordata(getJsonById.getLong(MONITOR_ID));
 
                                 getresultMonitor.put(Constant.STATUS, Constant.SUCCESS);
 
@@ -1361,12 +1359,12 @@ public class DatabaseEngine extends AbstractVerticle {
         return result;
     }
 
-    private JsonArray getMonitorData(Long monitorId) {
+    private JsonArray getLastmonitordata(Long monitorId) {
         JsonArray arrayResult = new JsonArray();
 
         try (Connection connection = getConnection()) {
             Statement statement = connection.createStatement();
-            String getById = "select * from provisionTable as p Natural join dumpAllData as d where p.id='" + monitorId + "'order by d.did desc limit 5";
+            String getById = "select * from provisionTable as p Natural join dumpAllData as d where p.id='" + monitorId + "' and d.monitorId = '" + monitorId + "'order by d.did desc limit 5";
             ResultSet resultSet = statement.executeQuery(getById);
             while (resultSet.next()) {
                 JsonObject result = new JsonObject();
