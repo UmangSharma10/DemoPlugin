@@ -178,7 +178,7 @@ public class Monitor {
     private void getlastInstance(RoutingContext routingContext) {
         try {
             String getId = routingContext.pathParam("id");
-            Bootstrap.vertx.eventBus().<JsonObject>request(Constant.EVENTBUS_GET_MONITOR_BY_ID, getId, getLastInstanceHandler -> {
+            Bootstrap.vertx.eventBus().<JsonObject>request(MONITOR_ENDPOINT, new JsonObject().put(METHOD , EVENTBUS_GET_MONITOR_BY_ID).put(MONITOR_ID, getId), getLastInstanceHandler -> {
                 if (getLastInstanceHandler.succeeded()) {
                     JsonObject getData = getLastInstanceHandler.result().body();
                     LOGGER.debug("Response {} ", getLastInstanceHandler.result().body());

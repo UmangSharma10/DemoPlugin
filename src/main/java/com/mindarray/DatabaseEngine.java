@@ -1207,62 +1207,62 @@ public class DatabaseEngine extends AbstractVerticle {
                         }
                     });
                     break;
+
+                case EVENTBUS_GET_MONITOR_BY_ID:
+                    String monitorId = handler.body().getString(MONITOR_ID);
+
+                    long monitorIdL = Long.parseLong(monitorId);
+
+                    JsonObject getJsonById = new JsonObject().put(Constant.MONITOR_ID, monitorIdL);
+
+
+                    Bootstrap.vertx.<JsonObject>executeBlocking(blockinghandler -> {
+                        JsonObject getresultMonitor = new JsonObject();
+                        try {
+
+                            String tableName = "provisionTable";
+
+                            String columnname = "id";
+
+                            if (Boolean.TRUE.equals(checkId(tableName, columnname, getJsonById.getLong(Constant.MONITOR_ID)))) {
+
+                                JsonArray value = getMonitorData(getJsonById.getLong(MONITOR_ID));
+
+                                getresultMonitor.put(Constant.STATUS, Constant.SUCCESS);
+
+                                getresultMonitor.put("Result", value);
+
+                                blockinghandler.complete(getresultMonitor);
+
+                            } else {
+
+                                getresultMonitor.put(Constant.STATUS, Constant.FAILED);
+
+                                getresultMonitor.put(Constant.ERROR, "Wrong Monitor ID");
+
+                                blockinghandler.fail(getresultMonitor.encode());
+
+                            }
+
+                        } catch (Exception exception) {
+
+                            getresultMonitor.put(Constant.STATUS, Constant.FAILED);
+
+                            getresultMonitor.put(Constant.ERROR, exception.getMessage());
+
+                            blockinghandler.fail(getresultMonitor.encode());
+                        }
+
+
+                    }).onComplete(handler1 -> {
+                        if (handler1.succeeded()) {
+                            handler.reply(handler1.result());
+                        } else {
+                            handler.fail(-1, handler1.cause().getMessage());
+                        }
+                    });
+                    break;
             }
-        });
-
-        eventBus.<String>consumer(Constant.EVENTBUS_GET_MONITOR_BY_ID, getallData -> {
-            String id = getallData.body();
-
-            long longid = Long.parseLong(id);
-
-            JsonObject getJsonById = new JsonObject().put(Constant.MONITOR_ID, longid);
-
-
-            Bootstrap.vertx.<JsonObject>executeBlocking(blockinghandler -> {
-                JsonObject getresultMonitor = new JsonObject();
-                try {
-
-                    String tableName = "provisionTable";
-
-                    String columnname = "id";
-
-                    if (Boolean.TRUE.equals(checkId(tableName, columnname, getJsonById.getLong(Constant.MONITOR_ID)))) {
-
-                        JsonArray value = getMonitorData(getJsonById.getLong(MONITOR_ID));
-
-                        getresultMonitor.put(Constant.STATUS, Constant.SUCCESS);
-
-                        getresultMonitor.put("Result", value);
-
-                        blockinghandler.complete(getresultMonitor);
-
-                    } else {
-
-                        getresultMonitor.put(Constant.STATUS, Constant.FAILED);
-
-                        getresultMonitor.put(Constant.ERROR, "Wrong Monitor ID");
-
-                        blockinghandler.fail(getresultMonitor.encode());
-
-                    }
-
-                } catch (Exception exception) {
-
-                    getresultMonitor.put(Constant.STATUS, Constant.FAILED);
-
-                    getresultMonitor.put(Constant.ERROR, exception.getMessage());
-
-                    blockinghandler.fail(getresultMonitor.encode());
-                }
-
-
-            }).onComplete(handler1 -> {
-                if (handler1.succeeded()) {
-                    getallData.reply(handler1.result());
-                } else {
-                    getallData.fail(-1, handler1.cause().getMessage());
-                }
-            });
         });
 
         eventBus.<JsonObject>consumer(EVENTBUS_UPDATE_METRIC, updateMetric -> {
